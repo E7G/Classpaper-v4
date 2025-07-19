@@ -14,7 +14,7 @@ const CONFIG = {
       "10",
       "11"
     ],
-    "displayMode": "day",
+    "displayMode": "scroll",
     "schedule": [
       {
         "day": "周一",
@@ -198,8 +198,8 @@ const CONFIG = {
         {
           "period": 11,
           "begin": "20:40",
-          "end": "22:05",
-          "rest": "22:05-22:20"
+          "end": "22:00",
+          "rest": null
         }
       ]
     }
