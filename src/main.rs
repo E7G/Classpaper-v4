@@ -10,12 +10,11 @@ mod winapi;
 
 use alcro::{Content, UIBuilder, UI};
 use ctrlc;
-use log::info;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use simplelog::{Config, WriteLogger};
+use simplelog::{ConfigBuilder, WriteLogger, CombinedLogger, TermLogger, TerminalMode, ColorChoice, LevelFilter, ThreadLogMode, LevelPadding};
 use std::process::Command;
 use toml::Value as TomlValue;
 use tray_item::TrayItem;
@@ -183,11 +182,24 @@ fn create_window(url: &str, window_name: &str, browser_path: &str) -> UI {
     if !browser_path.is_empty() {
         builder.browser_path(browser_path);
     }
-    let chrome_args = [
+    // 根据 URL 类型智能决定是否禁用缓存
+    let mut chrome_args = vec![
         "--kiosk",
         "--autoplay-policy=no-user-gesture-required",
         // 其他参数
     ];
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        // 本地文件禁用缓存
+        chrome_args.extend_from_slice(&[
+            "--disable-application-cache",
+            "--disk-cache-size=1",
+            "--media-cache-size=1",
+            "--disable-cache",
+            "--disable-offline-load-stale-cache",
+            "--disable-gpu-program-cache",
+            "--aggressive-cache-discard",
+        ]);
+    }
     println!("\n========== [ClassPaper] 启动参数 ==========");
     println!("[ClassPaper] chrome_args:");
     for arg in chrome_args.iter() {
@@ -440,112 +452,136 @@ fn close_all_and_exit(app_state: &Arc<Mutex<AppState>>) -> ! {
 }
 
 fn main() -> std::io::Result<()> {
-    let log_file = std::fs::File::create("app.log").expect("无法创建日志文件");
-    WriteLogger::init(log::LevelFilter::Info, Config::default(), log_file).expect("无法初始化日志");
-
+    // 日志初始化增强（美化格式/本地时间/分级/彩色/线程/文件/行号）
+    let mut builder = ConfigBuilder::new();
+    builder.set_thread_mode(ThreadLogMode::Both);
+    builder.set_thread_level(LevelFilter::Info);
+    builder.set_location_level(LevelFilter::Debug);
+    builder.set_level_padding(LevelPadding::Right);
+    builder.set_time_offset_to_local().ok();
+    let log_config = builder.build();
+    let log_file = std::fs::OpenOptions::new().create(true).append(true).open("app.log").unwrap_or_else(|e| {
+        eprintln!("[日志] 无法打开 app.log: {}，日志将输出到 stderr/nul", e);
+        #[cfg(windows)]
+        { std::fs::OpenOptions::new().write(true).open("nul").unwrap() }
+        #[cfg(not(windows))]
+        { std::fs::File::create("/dev/stderr").unwrap() }
+    });
+    let log_level = std::env::var("RUST_LOG").ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(LevelFilter::Info);
+    CombinedLogger::init(vec![
+        WriteLogger::new(log_level, log_config.clone(), log_file),
+        #[cfg(debug_assertions)]
+        TermLogger::new(LevelFilter::Debug, log_config, TerminalMode::Mixed, ColorChoice::Auto),
+    ]).expect("无法初始化日志");
+    log::info!("[ClassPaper] 日志系统初始化完成，日志级别: {:?}", log_level);
     // DPI感知
     winapi::set_dpi_aware();
-
+    log::info!("[ClassPaper] DPI 感知已设置");
     let config = parse_config();
     let url = normalize_url(&config.default.url);
-    info!("[ClassPaper][加载配置URL] {}", url);
-
+    log::info!("[ClassPaper][加载配置URL] {}", url);
     let window_name = format!("classpaper{}", generate_random_string(6));
     let app_state = Arc::new(Mutex::new(AppState {
         window: None,
         window_name: window_name.clone(),
         settings_windows: Vec::new(),
     }));
-
     // ctrlc 优雅退出
     let app_state_ctrlc = Arc::clone(&app_state);
     let app_state_ctrlc2 = Arc::clone(&app_state_ctrlc);
     ctrlc::set_handler(move || {
+        log::warn!("[ClassPaper] 收到 Ctrl+C 信号，准备优雅退出");
         close_all_and_exit(&app_state_ctrlc2);
     })
     .expect("设置 ctrlc 失败");
-
     let mut tray = TrayItem::new("ClassPaper", tray_item::IconSource::Resource("IDI_ICON1"))
         .expect("无法创建系统托盘");
+    log::info!("[ClassPaper] 托盘已创建");
     let app_state_reload = Arc::clone(&app_state);
     tray.add_menu_item("重载网页", move || {
+        log::info!("[托盘] 点击了重载网页");
         let state = app_state_reload.lock().unwrap();
         if let Some(ref window) = state.window {
             let _ = window.eval("location.reload(true)");
+            log::debug!("[托盘] 已请求主窗口重载");
         }
     })
     .expect("无法添加重载菜单项");
-
     let app_state_penetration = Arc::clone(&app_state);
     tray.add_menu_item("设置程序桌面穿透", move || {
+        log::info!("[托盘] 点击了桌面穿透");
         let state = app_state_penetration.lock().unwrap();
         winapi::setup_wallpaper(&state.window_name);
+        log::debug!("[托盘] 已请求设置桌面穿透");
     })
     .expect("无法添加穿透菜单项");
-
     let app_state_restart = Arc::clone(&app_state);
     tray.add_menu_item("重启网页显示程序", move || {
-        // 重新读取配置
+        log::info!("[托盘] 点击了重启网页显示程序");
         let config = parse_config();
         let url = normalize_url(&config.default.url);
         let browser_path = config.default.browser_path.clone();
         let mut state = app_state_restart.lock().unwrap();
         if let Some(ref window) = state.window {
+            log::info!("[ClassPaper] 关闭旧主窗口");
             window.close_blocking(3000);
         }
         let new_window = Arc::new(create_window(&url, &state.window_name, &browser_path));
+        log::info!("[ClassPaper] 新主窗口已创建");
         state.window = Some(new_window.clone());
-        // 设置桌面穿透
         winapi::setup_wallpaper(&state.window_name);
+        log::debug!("[托盘] 已请求重启网页显示程序并设置桌面穿透");
     })
     .expect("无法添加重启菜单项");
-
-    // 添加设置菜单项
     let app_state_settings = Arc::clone(&app_state);
     tray.add_menu_item("设置", move || {
+        log::info!("[托盘] 点击了设置");
         open_settings_window(app_state_settings.clone());
+        log::debug!("[托盘] 已请求打开设置窗口");
     })
     .expect("无法添加设置菜单项");
-
-    // 新增“重启程序”菜单项
     let _app_state_restart_app = Arc::clone(&app_state);
     tray.add_menu_item("重启程序", move || {
-        println!("[托盘] 重启主程序...");
-        // 获取当前可执行文件路径
+        log::warn!("[托盘] 点击了重启主程序");
         if let Ok(exec_path) = std::env::current_exe() {
             let _ = Command::new(exec_path).spawn();
+            log::info!("[托盘] 已请求重启主程序");
         }
         std::process::exit(0);
     }).expect("无法添加重启程序菜单项");
-
     let app_state_quit = Arc::clone(&app_state);
     let app_state_quit2 = Arc::clone(&app_state_quit);
     tray.add_menu_item("退出程序", move || {
+        log::warn!("[托盘] 点击了退出程序");
         close_all_and_exit(&app_state_quit2);
     })
     .expect("无法添加退出菜单项");
-
     let window = Arc::new(create_window(
         &url,
         &window_name,
         &config.default.browser_path,
     ));
+    log::info!("[ClassPaper] 主窗口已创建: {}", window_name);
     let mut state = app_state.lock().unwrap();
     state.window = Some(window);
     drop(state);
-
     thread::sleep(std::time::Duration::from_millis(300));
     let state = app_state.lock().unwrap();
     winapi::setup_wallpaper(&state.window_name);
     drop(state);
-
-    // 只在窗口创建后设置一次穿透
-
-    // 主线程停在这里，保证托盘消息循环
+    log::info!("[ClassPaper] 桌面穿透已设置");
     std::thread::park();
-    // 程序退出前，确保关闭浏览器窗口和设置窗口
+    log::info!("[ClassPaper] 主线程即将退出，准备关闭所有窗口");
     close_all_and_exit(&app_state);
-    // cleanup_profile_dir(&state.profile_dir); // 已移除
-    // thread::sleep(std::time::Duration::from_millis(200));
-    // Ok(())
 }
+
+// 日志轮转说明：
+// simplelog 不支持日志轮转，如需自动分割日志、保留天数、压缩等，请用 flexi_logger 替换。
+// 示例：
+// use flexi_logger::{Logger, Criterion, Naming, Cleanup};
+// Logger::try_with_str("info")?.log_to_file().directory("log_files").rotate(
+//     Criterion::Size(10_000_000), Naming::Numbers, Cleanup::KeepLogFiles(7),
+// ).start()?;
+// ---
