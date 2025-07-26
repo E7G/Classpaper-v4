@@ -24,6 +24,11 @@ winapi = { version = "0.3.9", features = [
     "handleapi",
     "synchapi",
     "winbase",
+    "sysinfoapi",
+    "psapi",
+    "wingdi",
+    "winnt",
+    "uxtheme",
 ]}
 alcro = { path = "alcro-patched", version = "0.5.4" }
 serde_json = "1.0.140"

@@ -451,6 +451,81 @@ fn close_all_and_exit(app_state: &Arc<Mutex<AppState>>) -> ! {
     std::process::exit(0);
 }
 
+/// 检测Windows版本并选择合适的桌面穿透方案
+fn get_windows_version() -> (u32, u32, u32) {
+    // 由于GetVersionExW在新版本Windows中可能被弃用，我们使用更简单的方法
+    // 通过检查系统特性来判断Windows版本
+    use std::process::Command;
+    
+    // 尝试通过wmic命令获取版本信息
+    if let Ok(output) = Command::new("wmic")
+        .args(&["os", "get", "Version", "/value"])
+        .output()
+    {
+        if let Ok(version_str) = String::from_utf8(output.stdout) {
+            for line in version_str.lines() {
+                if line.starts_with("Version=") {
+                    let version = line.replace("Version=", "");
+                    let parts: Vec<&str> = version.split('.').collect();
+                    if parts.len() >= 3 {
+                        let major = parts[0].parse().unwrap_or(10);
+                        let minor = parts[1].parse().unwrap_or(0);
+                        let build = parts[2].parse().unwrap_or(19041);
+                        return (major, minor, build);
+                    }
+                }
+            }
+        }
+    }
+    
+    // 如果获取失败，默认返回Windows 10的版本号
+    log::warn!("[ClassPaper] 无法获取Windows版本，使用默认值");
+    (10, 0, 19041)
+}
+
+/// 判断是否应该使用新版本的桌面穿透方案
+fn should_use_new_wallpaper_method() -> bool {
+    let (major, minor, build) = get_windows_version();
+    log::info!("[ClassPaper] 检测到Windows版本: {}.{}.{}", major, minor, build);
+    
+    // Windows 10 (major = 10) 且 build >= 19041 (20H1) 或 Windows 11 (major >= 10)
+    // 使用新方案适配Win10 20H1+和Win11的桌面穿透
+    if major >= 10 && build >= 19041 {
+        log::info!("[ClassPaper] 使用新版本桌面穿透方案 (Win10 20H1+/Win11)");
+        true
+    } else {
+        log::info!("[ClassPaper] 使用旧版本桌面穿透方案 (Win10早期版本/Win7)");
+        false
+    }
+}
+
+/// 统一的桌面穿透设置函数，根据Windows版本自动选择方案
+fn setup_desktop_penetration(window_name: &str) {
+    log::info!("[ClassPaper] 开始设置桌面穿透: {}", window_name);
+    
+    let success = if should_use_new_wallpaper_method() {
+        // 尝试新版本方案
+        log::debug!("[ClassPaper] 尝试新版本桌面穿透方案");
+        let result = winapi::setup_wallpaper_new(window_name);
+        if !result {
+            log::warn!("[ClassPaper] 新版本方案失败，回退到旧版本方案");
+            winapi::setup_wallpaper(window_name)
+        } else {
+            result
+        }
+    } else {
+        // 使用旧版本方案
+        log::debug!("[ClassPaper] 使用旧版本桌面穿透方案");
+        winapi::setup_wallpaper(window_name)
+    };
+    
+    if success {
+        log::info!("[ClassPaper] 桌面穿透设置成功");
+    } else {
+        log::error!("[ClassPaper] 桌面穿透设置失败");
+    }
+}
+
 fn main() -> std::io::Result<()> {
     // 日志初始化增强（美化格式/本地时间/分级/彩色/线程/文件/行号）
     let mut builder = ConfigBuilder::new();
@@ -513,7 +588,7 @@ fn main() -> std::io::Result<()> {
     tray.add_menu_item("设置程序桌面穿透", move || {
         log::info!("[托盘] 点击了桌面穿透");
         let state = app_state_penetration.lock().unwrap();
-        winapi::setup_wallpaper(&state.window_name);
+        setup_desktop_penetration(&state.window_name);
         log::debug!("[托盘] 已请求设置桌面穿透");
     })
     .expect("无法添加穿透菜单项");
@@ -531,7 +606,7 @@ fn main() -> std::io::Result<()> {
         let new_window = Arc::new(create_window(&url, &state.window_name, &browser_path));
         log::info!("[ClassPaper] 新主窗口已创建");
         state.window = Some(new_window.clone());
-        winapi::setup_wallpaper(&state.window_name);
+        setup_desktop_penetration(&state.window_name);
         log::debug!("[托盘] 已请求重启网页显示程序并设置桌面穿透");
     })
     .expect("无法添加重启菜单项");
@@ -569,7 +644,7 @@ fn main() -> std::io::Result<()> {
     drop(state);
     thread::sleep(std::time::Duration::from_millis(300));
     let state = app_state.lock().unwrap();
-    winapi::setup_wallpaper(&state.window_name);
+    setup_desktop_penetration(&state.window_name);
     drop(state);
     log::info!("[ClassPaper] 桌面穿透已设置");
     std::thread::park();

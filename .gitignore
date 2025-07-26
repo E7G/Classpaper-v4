@@ -53,3 +53,4 @@ convert_icon.py
 
 # 本地配置（如不希望提交）
 # config.toml
+/referrence
