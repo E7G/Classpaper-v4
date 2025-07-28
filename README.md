@@ -13,6 +13,24 @@ ClassPaper v4 是一款基于 Rust + alcro 的现代化桌面课程表/壁纸/�
 
 ---
 
+
+## 主页界面
+
+![index-day](res/screenshots/index-day.jpeg "主页-一天模式")
+![index-scroll](res/screenshots/index-scroll.jpeg "主页-滚动模式")
+
+---
+
+## 设置界面
+
+![setting-base](res/screenshots/setting-base.jpeg "设置-基础设置")
+![setting-lessons](res/screenshots/setting-lessons.jpeg "设置-课程表设置")
+![setting-event](res/screenshots/setting-event.jpeg "设置-事件设置")
+![setting-wallpaper](res/screenshots/setting-wallpaper.jpeg "设置-壁纸设置")
+![setting-sth](res/screenshots/setting-sth.jpeg "设置-告示设置")
+
+---
+
 ## 主要功能
 
 - **网页课表/壁纸**：支持本地 HTML 或远程 URL 作为动态壁纸，自动适应分辨率。
