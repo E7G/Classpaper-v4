@@ -44,3 +44,20 @@ LegalCopyright = "Copyright © 2025"
 FileDescription = "ClassPaper Desktop Wallpaper"
 ProductName = "ClassPaper"
 ProductVersion = "0.1.0" 
+
+# use yy-thunks and vc-ltl5 on Windows 7
+[target.'cfg(target_family = "windows")'.dependencies]
+oldwin-targets = { version = "0.1.1", default-features = false, features = [
+  "win7",
+  "yy-thunks",
+  "vc-ltl5",
+] }
+
+[target.'cfg(target_family = "windows")'.build-dependencies]
+# use yy-thunks and vc-ltl5 on Windows 7
+oldwin = { version = "0.1.1", default-features = false, features = [
+  "win7",
+  "yy-thunks",
+  "vc-ltl5",
+] }
+
