@@ -2932,6 +2932,10 @@ const sth = CONFIG.sth;`;
                 e.preventDefault();
                 const cell = this.getCellFromEvent(e);
                 if (cell && cell.tagName !== 'TH') {
+                    // 如果右键点击的单元格不在当前选中的单元格中，则重新选择该单元格
+                    if (!this.selectedCells.includes(cell)) {
+                        this.selectCell(cell);
+                    }
                     this.showContextMenu(e, cell);
                 }
             }
@@ -3211,83 +3215,153 @@ const sth = CONFIG.sth;`;
             }
 
             splitCell() {
-                if (this.selectedCells.length !== 1) {
-                    showStatus('请选择一个单元格进行拆分', 'error');
+                if (this.selectedCells.length < 1) {
+                    showStatus('请至少选择一个单元格进行拆分', 'error');
                     return;
                 }
 
-                const cell = this.selectedCells[0];
-                const mergedData = cell.getAttribute('data-merged-content');
+                this.saveState();
 
-                if (!mergedData) {
-                    // 普通文本按行分割
-                    const lines = cell.textContent.trim().split('\n');
-                    if (lines.length < 2) {
-                        showStatus('无法分割单行文本', 'error');
+                try {
+                    const tbody = this.table.querySelector('tbody');
+                    
+                    // 获取选定区域的边界
+                    const positions = this.selectedCells.map(cell => {
+                        const row = cell.parentElement;
+                        return {
+                            cell,
+                            row: Array.from(tbody.children).indexOf(row),
+                            col: Array.from(row.children).indexOf(cell)
+                        };
+                    });
+
+                    const minRow = Math.min(...positions.map(p => p.row));
+                    const maxRow = Math.max(...positions.map(p => p.row));
+                    const minCol = Math.min(...positions.map(p => p.col));
+                    const maxCol = Math.max(...positions.map(p => p.col));
+
+                    const selectionHeight = maxRow - minRow + 1;
+                    const selectionWidth = maxCol - minCol + 1;
+
+                    // 使用第一个单元格的内容作为拆分源
+                    const firstCell = this.selectedCells[0];
+                    const text = firstCell.textContent.trim();
+                    
+                    if (!text) {
+                        showStatus('单元格内容为空，无法拆分', 'error');
                         return;
                     }
 
-                    this.saveState();
-                    const tbody = this.table.querySelector('tbody');
-                    const rowIdx = Array.from(tbody.children).indexOf(cell.parentElement);
-                    const colIdx = Array.from(cell.parentElement.children).indexOf(cell);
-
-                    cell.textContent = lines[0];
-                    for (let i = 1; i < lines.length; i++) {
-                        while (rowIdx + i >= tbody.children.length) this.addRow();
-                        const target = tbody.children[rowIdx + i].cells[colIdx];
-                        if (target) target.textContent = lines[i];
-                    }
+                    // 智能检测文本结构并解析为矩阵
+                    let matrix = [];
                     
-                    showStatus(`按行分割为 ${lines.length} 部分`, 'success');
-                    return;
-                }
-
-                // 以当前单元格为起点向右向下展开还原
-                this.saveState();
-                try {
-                    const originalData = JSON.parse(mergedData);
-                    const rows = originalData.content.length;
-                    const cols = originalData.content[0] ? originalData.content[0].length : 1;
-                    
-                    const tbody = this.table.querySelector('tbody');
-                    const startRow = Array.from(tbody.children).indexOf(cell.parentElement);
-                    const startCol = Array.from(cell.parentElement.children).indexOf(cell);
-                    
-                    // 确保表格有足够的行列
-                    const requiredRows = startRow + rows;
-                    const requiredCols = startCol + cols;
-                    
-                    while (tbody.children.length < requiredRows) {
-                        this.addRow();
-                    }
-                    
-                    for (let r = 0; r < rows; r++) {
-                        const targetRow = startRow + r;
-                        while (tbody.children[targetRow] && tbody.children[targetRow].cells.length < requiredCols) {
-                            this.addColumn();
+                    // 首先检查是否是合并单元格的还原
+                    const mergedData = firstCell.getAttribute('data-merged-content');
+                    if (mergedData) {
+                        // 合并单元格还原 - 使用原始数据结构
+                        const originalData = JSON.parse(mergedData);
+                        matrix = originalData.content;
+                    } else {
+                        // 普通文本拆分 - 智能解析行列结构
+                        
+                        // 1. 按行分割
+                        const lines = text.split('\n').filter(line => line.trim());
+                        
+                        if (lines.length === 0) {
+                            showStatus('无法解析文本结构', 'error');
+                            return;
                         }
+
+                        // 2. 智能检测列分隔符
+                        let delimiter = null;
+                        
+                        // 检测制表符
+                        if (text.includes('\t')) {
+                            delimiter = '\t';
+                        }
+                        // 检测竖线表格
+                        else if (lines.some(line => line.includes('|') && line.split('|').length > 2)) {
+                            delimiter = '|';
+                        }
+                        // 检测逗号分隔
+                        else if (lines.some(line => line.includes(',') && line.split(',').length > 1)) {
+                            delimiter = ',';
+                        }
+                        // 默认使用空格
+                        else {
+                            delimiter = /\s+/;
+                        }
+
+                        // 3. 解析每行的列数据
+                        matrix = lines.map(line => {
+                            let parts;
+                            
+                            if (delimiter === '|') {
+                                // 处理竖线表格，去除边框字符
+                                parts = line.split('|')
+                                    .map(part => part.trim())
+                                    .filter(part => part && part !== '-' && part !== '');
+                            } else {
+                                parts = line.split(delimiter).map(part => part.trim());
+                            }
+                            
+                            return parts.filter(part => part || parts.length > 1);
+                        });
+
+                        // 4. 标准化矩阵（确保每行列数一致）
+                        const maxCols = Math.max(...matrix.map(row => row.length), 1);
+                        matrix = matrix.map(row => {
+                            const normalized = [...row];
+                            while (normalized.length < maxCols) {
+                                normalized.push('');
+                            }
+                            return normalized.slice(0, maxCols);
+                        });
                     }
-                    
-                    // 以当前单元格为起点向右向下展开填充内容
-                    for (let r = 0; r < rows; r++) {
-                        for (let c = 0; c < cols; c++) {
-                            const targetRow = startRow + r;
-                            const targetCol = startCol + c;
+
+                    if (matrix.length === 0 || matrix[0].length === 0) {
+                        showStatus('无法解析文本结构', 'error');
+                        return;
+                    }
+
+                    const contentRows = matrix.length;
+                    const contentCols = matrix[0].length;
+
+                    // 在选定区域内填充，超出部分截断
+                    const actualRows = Math.min(contentRows, selectionHeight);
+                    const actualCols = Math.min(contentCols, selectionWidth);
+
+                    // 在选定区域内填充内容
+                    for (let r = 0; r < actualRows; r++) {
+                        for (let c = 0; c < actualCols; c++) {
+                            const targetRow = minRow + r;
+                            const targetCol = minCol + c;
                             
                             if (tbody.children[targetRow] && tbody.children[targetRow].cells[targetCol]) {
-                                tbody.children[targetRow].cells[targetCol].textContent = originalData.content[r][c];
+                                tbody.children[targetRow].cells[targetCol].textContent = matrix[r][c] || '';
                             }
                         }
                     }
 
-                    // 清除合并相关的属性
-                    cell.removeAttribute('data-merged-content');
-                    cell.removeAttribute('data-merged-info');
+                    // 清理合并标记
+                    if (firstCell.getAttribute('data-merged-content')) {
+                        firstCell.removeAttribute('data-merged-content');
+                        firstCell.removeAttribute('data-merged-info');
+                    }
+
+                    // 智能提示信息
+                    let delimiterInfo = '';
+                    if (!mergedData) {
+                        if (text.includes('\t')) delimiterInfo = '（制表符分隔）';
+                        else if (text.includes('|')) delimiterInfo = '（竖线分隔）';
+                        else if (text.includes(',')) delimiterInfo = '（逗号分隔）';
+                        else delimiterInfo = '（空格分隔）';
+                    }
+
+                    showStatus(`已在选定区域内拆分 ${actualRows}行 × ${actualCols}列 ${delimiterInfo}`, 'success');
                     
-                    showStatus(`以当前格为起点展开 ${rows}行 × ${cols}列`, 'success');
                 } catch (e) {
-                    showStatus('还原失败: ' + e.message, 'error');
+                    showStatus('拆分失败: ' + e.message, 'error');
                 }
             }
 
