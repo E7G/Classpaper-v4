@@ -676,6 +676,149 @@
             transform: scale(0.95) translateY(0);
         }
 
+        /* 搜索栏样式 - Fluent Design */
+        .search-container {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--blur-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--subtle-border);
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            box-shadow: var(--shadow-light);
+        }
+
+        .search-bar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            animation: fluent-slide-down 0.2s cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+
+        @keyframes fluent-slide-down {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .search-input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0 12px;
+            transition: all 0.2s;
+        }
+
+        .search-input-group:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+        }
+
+        .search-input-group input[type="text"] {
+            border: none;
+            background: transparent;
+            padding: 8px 0;
+            font-size: 14px;
+            color: var(--text-color);
+            outline: none;
+            min-width: 200px;
+        }
+
+        .search-input-group input[type="text"]::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .search-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: var(--primary-color);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .search-button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .search-button:active {
+            transform: scale(0.95);
+        }
+
+        .search-button.secondary {
+            background: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .search-button.secondary:hover {
+            background: var(--hover-color);
+        }
+
+        .search-info {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 8px;
+            white-space: nowrap;
+        }
+
+        .search-highlight {
+            background-color: rgba(255, 235, 59, 0.3) !important;
+            border: 1px solid #ffeb3b !important;
+        }
+
+        .search-current {
+            background-color: rgba(255, 193, 7, 0.5) !important;
+            border: 2px solid #ffc107 !important;
+            box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.3);
+        }
+
+        /* 表格容器滚动 */
+        .table-scroll-container {
+            max-height: 70vh;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--card-bg);
+            box-shadow: var(--shadow-light);
+        }
+
+        .table-scroll-container::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .table-scroll-container::-webkit-scrollbar-track {
+            background: var(--bg-color);
+            border-radius: 4px;
+        }
+
+        .table-scroll-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .table-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
         /* Fluent Design 菜单样式 */
         .context-menu, .long-press-menu {
             position: fixed;
@@ -1559,9 +1702,8 @@
                             </div>
                             <div class="toolbar-group">
                                 <button onclick="copyCells()" title="复制">📋 复制</button>
-                                <button onclick="pasteCells()" title="粘贴">📋 粘贴</button>
-                                <button onclick="deleteSelected()" title="删除内容">🗑️ 删除</button>
-                                <button onclick="clearCells()" title="清空内容">🧹 清空</button>
+                                <button onclick="pasteCells()" title="粘贴">📌 粘贴</button>
+                                <button onclick="clearCells()" title="清空内容">🗑️ 清空</button>
                             </div>
                             <div class="toolbar-group">
                                 <button onclick="mergeCells()" title="合并单元格">🔗 合并</button>
@@ -1572,7 +1714,16 @@
                             <div class="toolbar-group">
                                 <button onclick="undoAction()" title="撤销">↩️ 撤销</button>
                                 <button onclick="redoAction()" title="重做">↪️ 重做</button>
-                                <button onclick="findAndReplace()" title="查找替换">🔍 查找</button>
+                                <button onclick="toggleSearchBar()" title="查找替换">🔍 查找</button>
+                                <div class="search-bar" id="searchBar" style="display: none;">
+                                    <input type="text" id="searchInput" placeholder="查找..." onkeydown="handleSearchKeydown(event)">
+                                    <input type="text" id="replaceInput" placeholder="替换为...">
+                                    <button onclick="findNext()" title="查找下一个">⬇️</button>
+                                    <button onclick="findPrevious()" title="查找上一个">⬆️</button>
+                                    <button onclick="replaceCurrent()" title="替换">🔄</button>
+                                    <button onclick="replaceAll()" title="全部替换">🔄🔄</button>
+                                    <button onclick="closeSearchBar()" title="关闭">❌</button>
+                                </div>
                             </div>
                             <div class="toolbar-group">
                                 <button onclick="exportData()" title="导出CSV">📤 导出</button>
@@ -1580,7 +1731,7 @@
                             </div>
                         </div>
                         
-                        <div class="table-container">
+                        <div class="table-scroll-container">
                             <table id="scheduleTable">
                                 <thead>
                                     <tr>
@@ -2603,6 +2754,47 @@ const sth = CONFIG.sth;`;
                             border-color: #a4262c;
                             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
                         }
+
+                        .search-bar {
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                            padding: 8px 12px;
+                            background: #f5f5f5;
+                            border-radius: 6px;
+                            margin: 8px 0;
+                            flex-wrap: wrap;
+                        }
+
+                        .search-bar input {
+                            padding: 6px 10px;
+                            border: 1px solid #ddd;
+                            border-radius: 4px;
+                            font-size: 14px;
+                            min-width: 120px;
+                        }
+
+                        .search-bar input:focus {
+                            outline: none;
+                            border-color: #0078d4;
+                            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+                        }
+
+                        .search-bar button {
+                            padding: 6px 10px;
+                            font-size: 14px;
+                            min-height: 28px;
+                        }
+
+                        .search-highlight {
+                            background-color: #ffff00 !important;
+                            color: #000 !important;
+                        }
+
+                        .search-current {
+                            background-color: #0078d4 !important;
+                            color: #fff !important;
+                        }
                         
                         @keyframes fadeIn {
                             from { opacity: 0; }
@@ -2769,7 +2961,7 @@ const sth = CONFIG.sth;`;
                 this.selectedCells = [];
                 this.copiedData = [];
                 this.history = [];
-                this.historyIndex = -1;
+                this.historyIndex = 0;
                 this.isSelecting = false;
                 this.startCell = null;
                 this.editingCell = null;
@@ -2897,7 +3089,8 @@ const sth = CONFIG.sth;`;
 
                 switch(e.key) {
                     case 'Delete':
-                        this.clearSelectedCells();
+                        this.clearCells();
+                        e.preventDefault();
                         break;
                     case 'c':
                         if (e.ctrlKey || e.metaKey) {
@@ -4569,7 +4762,7 @@ const sth = CONFIG.sth;`;
             }
 
             createContextMenu() {
-                // 右键菜单 - Fluent Design with submenus
+                // 精简右键菜单 - Fluent Design 核心功能
                 const contextMenu = document.createElement('div');
                 contextMenu.id = 'contextMenu';
                 contextMenu.className = 'context-menu';
@@ -4580,133 +4773,56 @@ const sth = CONFIG.sth;`;
                         <span class="menu-shortcut">Ctrl+C</span>
                     </div>
                     <div class="context-menu-item" onclick="tableEditor.pasteCells(); tableEditor.hideContextMenu();">
-                        <span class="menu-icon">📄</span>
+                        <span class="menu-icon">📌</span>
                         <span>粘贴</span>
                         <span class="menu-shortcut">Ctrl+V</span>
                     </div>
                     <div class="context-menu-item" onclick="tableEditor.clearCells(); tableEditor.hideContextMenu();">
                         <span class="menu-icon">🗑️</span>
-                        <span>清空内容</span>
+                        <span>清空</span>
                         <span class="menu-shortcut">Delete</span>
                     </div>
                     
                     <div class="context-menu-separator"></div>
                     
-                    <div class="context-menu-item" onclick="tableEditor.mergeCells(); tableEditor.hideContextMenu();">
-                        <span class="menu-icon">🔲</span>
-                        <span>合并内容</span>
-                        <span class="menu-shortcut">Ctrl+M</span>
+                    <div class="context-menu-item" onclick="tableEditor.selectRow(); tableEditor.hideContextMenu();">
+                        <span class="menu-icon">➡️</span>
+                        <span>选择整行</span>
                     </div>
-                    <div class="context-menu-item" onclick="tableEditor.splitCell(); tableEditor.hideContextMenu();">
-                        <span class="menu-icon">🔳</span>
-                        <span>拆分内容</span>
-                        <span class="menu-shortcut">Ctrl+Shift+M</span>
-                    </div>
-                    
-                    <div class="context-menu-separator"></div>
-                    
-                    <div class="context-menu-item" onclick="tableEditor.addRow(); tableEditor.hideContextMenu();">
-                        <span class="menu-icon">➕</span>
-                        <span>添加行</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.addColumn(); tableEditor.hideContextMenu();">
-                        <span class="menu-icon">➕</span>
-                        <span>添加列</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.deleteRow(); tableEditor.hideContextMenu();">
-                        <span class="menu-icon">➖</span>
-                        <span>删除行</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.deleteColumn(); tableEditor.hideContextMenu();">
-                        <span class="menu-icon">➖</span>
-                        <span>删除列</span>
-                    </div>
-                    
-                    <div class="context-menu-separator"></div>
-                    
-                    <div class="context-menu-item" onclick="tableEditor.undoAction(); tableEditor.hideContextMenu();" id="contextUndo">
-                        <span class="menu-icon">↶</span>
-                        <span>撤销</span>
-                        <span class="menu-shortcut">Ctrl+Z</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.redoAction(); tableEditor.hideContextMenu();" id="contextRedo">
-                        <span class="menu-icon">↷</span>
-                        <span>重做</span>
-                        <span class="menu-shortcut">Ctrl+Shift+Z</span>
+                    <div class="context-menu-item" onclick="tableEditor.selectColumn(); tableEditor.hideContextMenu();">
+                        <span class="menu-icon">⬇️</span>
+                        <span>选择整列</span>
                     </div>
                 `;
                 document.body.appendChild(contextMenu);
 
-                // 长按菜单（触屏）- 简化版本
+                // 精简长按菜单（触屏）- Fluent Design 核心功能
                 const longPressMenu = document.createElement('div');
                 longPressMenu.id = 'longPressMenu';
                 longPressMenu.className = 'long-press-menu';
                 longPressMenu.innerHTML = `
-                    <div class="context-menu-item" onclick="tableEditor.addRow()">
-                        <span class="menu-icon">➕</span>
-                        <span>添加行</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.addColumn()">
-                        <span class="menu-icon">➕</span>
-                        <span>添加列</span>
-                    </div>
-                    <div class="context-menu-separator"></div>
-                    <div class="context-menu-item" onclick="tableEditor.selectRow()">
+                    <div class="context-menu-item" onclick="tableEditor.copyCells(); tableEditor.hideContextMenu();">
                         <span class="menu-icon">📋</span>
-                        <span>选择整行</span>
+                        <span>复制</span>
                     </div>
-                    <div class="context-menu-item" onclick="tableEditor.selectColumn()">
-                        <span class="menu-icon">📋</span>
-                        <span>选择整列</span>
+                    <div class="context-menu-item" onclick="tableEditor.pasteCells(); tableEditor.hideContextMenu();">
+                        <span class="menu-icon">📌</span>
+                        <span>粘贴</span>
                     </div>
-                    <div class="context-menu-separator"></div>
-                    <div class="context-menu-item" onclick="tableEditor.deleteRow()">
+                    <div class="context-menu-item" onclick="tableEditor.clearCells(); tableEditor.hideContextMenu();">
                         <span class="menu-icon">🗑️</span>
-                        <span>删除行</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.deleteColumn()">
-                        <span class="menu-icon">🗑️</span>
-                        <span>删除列</span>
-                    </div>
-                    <div class="context-menu-separator"></div>
-                    <div class="context-menu-item" onclick="tableEditor.mergeCells()">
-                        <span class="menu-icon">🔲</span>
-                        <span>合并单元格</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.splitCell()">
-                        <span class="menu-icon">🔳</span>
-                        <span>拆分单元格</span>
-                    </div>
-                    <div class="context-menu-separator"></div>
-                    <div class="context-menu-item" onclick="tableEditor.fillSeries()">
-                        <span class="menu-icon">📊</span>
-                        <span>填充序列</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.autoFitColumns()">
-                        <span class="menu-icon">📏</span>
-                        <span>自动列宽</span>
-                    </div>
-                    <div class="context-menu-separator"></div>
-                    <div class="context-menu-item" onclick="tableEditor.exportData()">
-                        <span class="menu-icon">📤</span>
-                        <span>导出CSV</span>
-                    </div>
-                    <div class="context-menu-item" onclick="tableEditor.importData()">
-                        <span class="menu-icon">📥</span>
-                        <span>导入CSV</span>
-                    </div>
-                    <div class="context-menu-separator"></div>
-                    <div class="context-menu-item" onclick="tableEditor.clearCells()">
-                        <span class="menu-icon">🧹</span>
                         <span>清空</span>
                     </div>
-                    <div class="context-menu-item" onclick="tableEditor.undoAction()">
-                        <span class="menu-icon">↶</span>
-                        <span>撤销</span>
+                    
+                    <div class="context-menu-separator"></div>
+                    
+                    <div class="context-menu-item" onclick="tableEditor.selectRow(); tableEditor.hideContextMenu();">
+                        <span class="menu-icon">➡️</span>
+                        <span>选择整行</span>
                     </div>
-                    <div class="context-menu-item" onclick="tableEditor.redoAction()">
-                        <span class="menu-icon">↷</span>
-                        <span>重做</span>
+                    <div class="context-menu-item" onclick="tableEditor.selectColumn(); tableEditor.hideContextMenu();">
+                        <span class="menu-icon">⬇️</span>
+                        <span>选择整列</span>
                     </div>`;
                 document.body.appendChild(longPressMenu);
             }
@@ -4762,10 +4878,13 @@ const sth = CONFIG.sth;`;
                 menu.style.left = '-9999px';
                 menu.style.top = '-9999px';
                 menu.style.display = 'block';
+                menu.classList.add('show');
                 menu.style.visibility = 'hidden';
                 
                 // 获取实际尺寸
                 const menuRect = menu.getBoundingClientRect();
+                // console.log('菜单宽度:', menuRect.width);
+                // console.log('菜单高度:', menuRect.height);
                 
                 // 计算位置
                 let left = e.clientX;
@@ -4795,7 +4914,6 @@ const sth = CONFIG.sth;`;
                 menu.style.left = left + 'px';
                 menu.style.top = top + 'px';
                 menu.style.visibility = 'visible';
-                menu.classList.add('show');
                 
                 // 阻止事件冒泡
                 e.preventDefault();
@@ -4916,9 +5034,383 @@ const sth = CONFIG.sth;`;
                     updateUndoRedoButtons();
                 }
             }
+
+            // Excel风格的搜索功能
+            searchText(searchTerm, direction = 'down') {
+                if (!searchTerm) {
+                    this.clearSearchHighlights();
+                    return;
+                }
+
+                const allCells = Array.from(this.table.querySelectorAll('td'));
+                if (allCells.length === 0) return;
+
+                // 清除之前的高亮
+                this.clearSearchHighlights();
+
+                // 查找所有匹配的单元格
+                const matches = [];
+                allCells.forEach((cell, index) => {
+                    const text = cell.textContent.toLowerCase();
+                    if (text.includes(searchTerm.toLowerCase())) {
+                        matches.push({
+                            cell: cell,
+                            index: index,
+                            text: cell.textContent
+                        });
+                        cell.classList.add('search-highlight');
+                    }
+                });
+
+                if (matches.length === 0) {
+                    this.showFluentDialog({
+                        title: '查找',
+                        message: `未找到包含 "${searchTerm}" 的内容`,
+                        confirmText: '确定',
+                        type: 'info'
+                    });
+                    return;
+                }
+
+                // 确定当前选中的单元格
+                let currentIndex = 0;
+                if (this.selectedCells.length > 0) {
+                    const currentCell = this.selectedCells[0];
+                    const currentCellIndex = allCells.indexOf(currentCell);
+                    if (currentCellIndex !== -1) {
+                        // 找到下一个匹配项
+                        for (let i = 0; i < matches.length; i++) {
+                            if (direction === 'down') {
+                                if (matches[i].index > currentCellIndex) {
+                                    currentIndex = i;
+                                    break;
+                                }
+                                if (i === matches.length - 1) {
+                                    currentIndex = 0; // 循环到第一个
+                                }
+                            } else {
+                                if (matches[i].index < currentCellIndex) {
+                                    currentIndex = i;
+                                } else {
+                                    if (currentIndex === 0 && matches[i].index > currentCellIndex) {
+                                        currentIndex = matches.length - 1; // 循环到最后一个
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 高亮当前匹配项
+                const currentMatch = matches[currentIndex];
+                currentMatch.cell.classList.add('search-current');
+                
+                // 滚动到当前匹配项并选中
+                currentMatch.cell.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+                
+                this.clearSelection();
+                this.selectCell(currentMatch.cell);
+                
+                // 返回匹配结果信息
+                return {
+                    total: matches.length,
+                    current: currentIndex + 1,
+                    matches: matches,
+                    currentMatch: currentMatch
+                };
+            }
+
+            // 查找下一个
+            searchNext(searchTerm) {
+                return this.searchText(searchTerm, 'down');
+            }
+
+            // 查找上一个
+            searchPrevious(searchTerm) {
+                return this.searchText(searchTerm, 'up');
+            }
+
+            // 替换文本
+            replaceText(searchTerm, replaceTerm, replaceAll = false) {
+                if (!searchTerm) return;
+
+                const allCells = Array.from(this.table.querySelectorAll('td'));
+                if (allCells.length === 0) return;
+
+                let replacedCount = 0;
+                const cellsToReplace = [];
+
+                if (replaceAll) {
+                    // 替换所有匹配项
+                    allCells.forEach(cell => {
+                        if (cell.textContent.toLowerCase().includes(searchTerm.toLowerCase())) {
+                            cellsToReplace.push(cell);
+                        }
+                    });
+                } else {
+                    // 只替换当前选中的匹配项
+                    const currentCell = this.selectedCells.length > 0 ? this.selectedCells[0] : null;
+                    if (currentCell && currentCell.textContent.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        cellsToReplace.push(currentCell);
+                    }
+                }
+
+                if (cellsToReplace.length > 0) {
+                    this.saveState();
+                    cellsToReplace.forEach(cell => {
+                        cell.textContent = cell.textContent.replace(
+                            new RegExp(escapeRegExp(searchTerm), 'gi'), 
+                            replaceTerm
+                        );
+                        replacedCount++;
+                    });
+                    
+                    this.clearSearchHighlights();
+                    
+                    this.showFluentDialog({
+                        title: '替换完成',
+                        message: `已替换 ${replacedCount} 个匹配项`,
+                        confirmText: '确定',
+                        type: 'success'
+                    });
+                } else {
+                    this.showFluentDialog({
+                        title: '替换',
+                        message: `未找到包含 "${searchTerm}" 的内容`,
+                        confirmText: '确定',
+                        type: 'info'
+                    });
+                }
+
+                return replacedCount;
+            }
+
+            // 清除搜索高亮
+            clearSearchHighlights() {
+                this.table.querySelectorAll('.search-highlight, .search-current').forEach(cell => {
+                    cell.classList.remove('search-highlight', 'search-current');
+                });
+            }
+
+            // 选中单元格
+            selectCell(cell) {
+                this.clearSelection();
+                cell.classList.add('selected');
+                this.selectedCells = [cell];
+                this.lastSelectedCell = cell;
+            }
         }
 
-        // 初始化表格编辑器
+        // 正则表达式转义函数
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            // 处理搜索键盘事件
+            function handleSearchKeydown(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    findNext();
+                } else if (event.key === 'Enter' && event.shiftKey) {
+                    event.preventDefault();
+                    findPrevious();
+                }
+            }
+
+            // 查找下一个
+            function findNext() {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput && searchInput.value.trim()) {
+                    performSearch('down');
+                }
+            }
+
+            // 查找上一个
+            function findPrevious() {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput && searchInput.value.trim()) {
+                    performSearch('up');
+                }
+            }
+
+            // 替换当前
+            function replaceCurrent() {
+                performReplace();
+            }
+
+            // 替换所有
+            function replaceAll() {
+                performReplaceAll();
+            }
+
+            // 切换搜索栏显示/隐藏
+            function toggleSearchBar() {
+                const searchBar = document.getElementById('searchBar');
+                const searchInput = document.getElementById('searchInput');
+                
+                if (!searchBar) {
+                    console.error('Search bar not found');
+                    return;
+                }
+                
+                if (searchBar.style.display === 'none' || searchBar.style.display === '') {
+                    searchBar.style.display = 'flex';
+                    if (searchInput) searchInput.focus();
+                } else {
+                    searchBar.style.display = 'none';
+                    if (tableEditor) {
+                        tableEditor.clearSearchHighlights();
+                    }
+                }
+            }
+
+            // Fluent Design状态提示系统
+            function showStatus(message, type = 'info', duration = 3000) {
+                // 移除已存在的提示
+                const existingStatus = document.querySelector('.status');
+                if (existingStatus) {
+                    existingStatus.remove();
+                }
+
+                const status = document.createElement('div');
+                status.className = `status ${type}`;
+                status.textContent = message;
+                status.style.cssText = `
+                    position: fixed;
+                    top: 24px;
+                    right: 24px;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #ffffff;
+                    background: rgba(0, 120, 212, 0.9);
+                    backdrop-filter: blur(20px) saturate(180%);
+                    -webkit-backdrop-filter: blur(20px) saturate(180%);
+                    box-shadow: 0 6.4px 14.4px 0 rgba(0, 0, 0, 0.132), 0 1.2px 3.6px 0 rgba(0, 0, 0, 0.108);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    z-index: 1000;
+                    animation: fluentSlideIn 0.2s cubic-bezier(0.1, 0.9, 0.2, 1);
+                    max-width: 300px;
+                    word-wrap: break-word;
+                `;
+
+                // 添加动画样式
+                if (!document.querySelector('#fluentAnimations')) {
+                    const style = document.createElement('style');
+                    style.id = 'fluentAnimations';
+                    style.textContent = `
+                        @keyframes fluentSlideIn {
+                            from { opacity: 0; transform: translateX(100px) scale(0.9); }
+                            to { opacity: 1; transform: translateX(0) scale(1); }
+                        }
+                        @keyframes fluentSlideOut {
+                            from { opacity: 1; transform: translateX(0) scale(1); }
+                            to { opacity: 0; transform: translateX(100px) scale(0.9); }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+
+                document.body.appendChild(status);
+
+                // 自动消失
+                setTimeout(() => {
+                    status.style.animation = 'fluentSlideOut 0.2s ease-out';
+                    setTimeout(() => status.remove(), 200);
+                }, duration);
+            }
+
+            // 执行查找
+            function performSearch(direction = 'down') {
+                if (!tableEditor) return;
+                
+                const searchInput = document.getElementById('searchInput');
+                const searchTerm = searchInput.value.trim();
+                
+                if (!searchTerm) {
+                    tableEditor.clearSearchHighlights();
+                    return;
+                }
+
+                const result = direction === 'down' ? 
+                    tableEditor.searchNext(searchTerm) : 
+                    tableEditor.searchPrevious(searchTerm);
+                
+                if (result) {
+                    if (result.total === 0) {
+                        showStatus(`未找到 "${searchTerm}"`, 'error', 2000);
+                    } else {
+                        showStatus(`找到 ${result.total} 处匹配项，当前第 ${result.current} 处`, 'success', 1500);
+
+                    }
+                }
+            }
+
+            // 执行替换
+            function performReplace() {
+                if (!tableEditor) return;
+                
+                const searchInput = document.getElementById('searchInput');
+                const replaceInput = document.getElementById('replaceInput');
+                const searchTerm = searchInput.value.trim();
+                const replaceTerm = replaceInput.value;
+                
+                if (!searchTerm) {
+                    showStatus('请输入要查找的内容', 'warning', 2000);
+                    return;
+                }
+                
+                const result = tableEditor.replaceText(searchTerm, replaceTerm, false);
+                if (result) {
+                    if (result > 0) {
+                        showStatus('已替换', 'success', 1500);
+                    } else {
+                        showStatus('无匹配项', 'error', 2000);
+                    }
+                }
+            }
+
+            // 执行全部替换
+            function performReplaceAll() {
+                if (!tableEditor) return;
+                
+                const searchInput = document.getElementById('searchInput');
+                const replaceInput = document.getElementById('replaceInput');
+                const searchTerm = searchInput.value.trim();
+                const replaceTerm = replaceInput.value;
+                
+                if (!searchTerm) {
+                    showStatus('请输入要查找的内容', 'warning', 2000);
+                    return;
+                }
+                
+                const result = tableEditor.replaceText(searchTerm, replaceTerm, true);
+                if (result) {
+                    if (result > 0) {
+                        showStatus(`已替换 ${result} 处`, 'success', 2000);
+                    } else {
+                        showStatus('无匹配项', 'error', 2000);
+                    }
+                }
+            }
+
+            // 关闭搜索栏
+            function closeSearchBar() {
+                const searchBar = document.getElementById('searchBar');
+                if (searchBar) {
+                    searchBar.style.display = 'none';
+                }
+                if (tableEditor) {
+                    tableEditor.clearSearchHighlights();
+                }
+            }
+
+            // 初始化表格编辑器
             let tableEditor;
             document.addEventListener('DOMContentLoaded', () => {
                 tableEditor = new OfficeTableEditor('scheduleTable');
@@ -4928,6 +5420,12 @@ const sth = CONFIG.sth;`;
                 
                 // 初始化撤销/重做按钮状态
                 updateUndoRedoButtons();
+                
+                // 为搜索输入框添加事件监听
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.addEventListener('keydown', handleSearchKeydown);
+                }
                 
                 // 添加全局键盘快捷键支持
                 document.addEventListener('keydown', (e) => {
@@ -4944,6 +5442,30 @@ const sth = CONFIG.sth;`;
                         e.preventDefault();
                         if (tableEditor) {
                             tableEditor.redoAction();
+                        }
+                    }
+
+                    // Ctrl+F 打开搜索栏
+                    if (e.ctrlKey && e.key === 'f') {
+                        e.preventDefault();
+                        toggleSearchBar();
+                    }
+
+                    // Esc 关闭搜索栏
+                    if (e.key === 'Escape') {
+                        closeSearchBar();
+                    }
+                });
+
+                // 为搜索输入框添加回车键事件
+                document.addEventListener('keydown', (e) => {
+                    if (e.target.id === 'searchInput') {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            performSearch('down');
+                        } else if (e.key === 'Enter' && e.shiftKey) {
+                            e.preventDefault();
+                            performSearch('up');
                         }
                     }
                 });
