@@ -578,6 +578,22 @@ ClassPaper v4 引入了**智能错误通知系统**，基于Windows原生Message
 
 ---
 
+## 📚 开发文档
+
+项目已提供完整的开发文档，帮助开发者快速理解和扩展功能：
+
+### 🔧 前端开发文档
+- 文档：[FRONTEND_API.md](FRONTEND_API.md)
+- 内容：前端架构设计、API接口、样式系统、扩展指南
+- 适用：Web前端开发者、UI设计师
+
+### ⚙️ 后端开发文档
+- 文档：[BACKEND_API.md](BACKEND_API.md)
+- 内容：Rust后端架构、Windows API集成、配置系统、构建部署
+- 适用：Rust开发者、系统开发者
+
+---
+
 <div align="center">
 
 ### 🎉 支持项目
