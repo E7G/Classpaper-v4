@@ -135,7 +135,6 @@
 
 ---
 
-
 ## ⚙️ 配置文件详解
 
 ### 📋 配置文件结构
@@ -559,7 +558,7 @@ ClassPaper v4 引入了**智能错误通知系统**，基于Windows原生Message
 | 🛠️ 项目                                          | 📝 说明       | 🔗 链接       |
 | -------------------------------------------------- | ------------- | ------------- |
 | [Pico.css](https://picocss.com/)                   | 轻量级CSS框架 | 前端样式基础  |
-| [alcro](https://github.com/Srinivasa314/alcro)     | Rust WebView  | 跨平台Web容器 |
+| [alcro](https://github.com/Srinivasa314/alcro)     | Rust cdp调用浏览器        | 跨平台Web容器 |
 | [winapi-rs](https://github.com/retep998/winapi-rs) | Windows API   | 系统级功能    |
 
 #### 👥 特别感谢
