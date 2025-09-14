@@ -347,6 +347,8 @@ function nowClass() {
             // 不在上课时间时，才使用最近的课程
             const { prevIdx, nextIdx } = findNearestClasses(now, schedule);
             currentIndex = nextIdx !== -1 ? nextIdx : prevIdx;
+            //schedule和todayClasses的差距修正
+            currentIndex++;
             // console.log(`[nowClass] 使用最近课程索引: ${currentIndex} (上一节: ${prevIdx}, 下一节: ${nextIdx})`);
         }
         
@@ -355,29 +357,37 @@ function nowClass() {
 
         // 修复：只有当确实不在上课时间时才显示休息
         if (!inClassTime) {
-            // console.log('[nowClass] 无当前课程，开始填充休息状态和前后课程');
-            // 中间位置显示休息
-            arranged[6] = "休息";
-            // console.log('[nowClass] 设置中间位置为"休息"');
+            // console.log('[nowClass] 无当前课程，开始插入休息并重组课程');
+            let newArranged = [...arranged];
             
-            // 向前追溯填充前一天课程
-            for (let i = 5; i >= 0; i--) {
-                if (!arranged[i] && prev_vec) {
-                    const prevIndex = prev_vec.length - (6 - i);
-                    arranged[i] = prevIndex >= 0 ? prev_vec[prevIndex] : "...";
-                    // console.log(`[nowClass] 填充前向课程[${i}]: ${arranged[i]} (索引: ${prevIndex})`);
+            // 去掉第一个课程，在中间位置插入休息
+            newArranged.shift(); // 去掉第一个元素
+            newArranged.splice(6, 0, "休息"); // 在第6个位置插入休息
+            
+            // 确保数组长度保持12个
+            while (newArranged.length < 12) {
+                newArranged.push("...");
+            }
+            
+            // 如果需要填充前后课程，保持原有逻辑
+            for (let i = 0; i < 12; i++) {
+                if (!newArranged[i]) {
+                    if (i < 5 && prev_vec) {
+                        // 向前追溯
+                        const prevIndex = prev_vec.length - (5 - i);
+                        newArranged[i] = prevIndex >= 0 ? prev_vec[prevIndex] : "...";
+                    } else if (i > 6 && next_vec) {
+                        // 向后追溯
+                        const nextIndex = i - 7;
+                        newArranged[i] = nextIndex < next_vec.length ? next_vec[nextIndex] : "...";
+                    } else {
+                        newArranged[i] = "...";
+                    }
                 }
             }
             
-            // 向后追溯填充后一天课程
-            for (let i = 7; i < 12; i++) {
-                if (!arranged[i] && next_vec) {
-                    const nextIndex = i - 7;
-                    arranged[i] = nextIndex < next_vec.length ? next_vec[nextIndex] : "...";
-                    // console.log(`[nowClass] 填充后向课程[${i}]: ${arranged[i]} (索引: ${nextIndex})`);
-                }
-            }
-            // console.log('[nowClass] 填充完成后的课程排列:', arranged);
+            arranged = newArranged.slice(0, 12); // 确保只保留12个
+            // console.log('[nowClass] 重组完成后的课程排列:', arranged); 
         } else {
             // console.log('[nowClass] 当前在上课时间，不显示休息，直接使用实际课程');
         }
