@@ -656,17 +656,26 @@ fn main() -> std::io::Result<()> {
         let url = normalize_url(&config.default.url);
         let browser_path = config.default.browser_path.clone();
         let mut state = app_state_restart.lock().unwrap();
+        // 严格关闭所有旧窗口（包括主窗口和设置窗口）
         if let Some(ref window) = state.window {
-            log::info!("[ClassPaper] 关闭旧主窗口");
+            log::info!("[ClassPaper] 正在关闭旧主窗口...");
             window.close_blocking(3000);
+            log::info!("[ClassPaper] 旧主窗口已关闭");
         }
+        for (i, win) in state.settings_windows.iter().enumerate() {
+            log::info!("[ClassPaper] 正在关闭设置窗口 {}...", i + 1);
+            win.close_blocking(3000);
+            log::info!("[ClassPaper] 设置窗口 {} 已关闭", i + 1);
+        }
+        state.settings_windows.clear(); // 清空设置窗口列表
+        // 确保所有窗口都关闭后，再创建新窗口
         match create_window(&url, &state.window_name, &browser_path) {
             Ok(new_ui) => {
                 let new_window = Arc::new(new_ui);
                 log::info!("[ClassPaper] 新主窗口已创建");
                 state.window = Some(new_window.clone());
                 setup_desktop_penetration(&state.window_name);
-                log::debug!("[托盘] 已请求重启网页显示程序并设置桌面穿透");
+                log::debug!("[托盘] 已请求重启网页显示程序并设置桌面穿透，所有旧窗口已确保关闭");
             }
             Err(_) => {
                 log::error!("[ClassPaper] 重启网页显示程序失败");
@@ -681,12 +690,27 @@ fn main() -> std::io::Result<()> {
         log::debug!("[托盘] 已请求打开设置窗口");
     })
     .expect("无法添加设置菜单项");
-    let _app_state_restart_app = Arc::clone(&app_state);
+    let app_state_restart_app = Arc::clone(&app_state);
     tray.add_menu_item("重启程序", move || {
         log::warn!("[托盘] 点击了重启主程序");
+        // 先严格关闭所有窗口
+        {
+            let state = app_state_restart_app.lock().unwrap();
+            if let Some(ref window) = state.window {
+                log::info!("[ClassPaper] 正在关闭主窗口...");
+                window.close_blocking(3000);
+                log::info!("[ClassPaper] 主窗口已关闭");
+            }
+            for (i, win) in state.settings_windows.iter().enumerate() {
+                log::info!("[ClassPaper] 正在关闭设置窗口 {}...", i + 1);
+                win.close_blocking(3000);
+                log::info!("[ClassPaper] 设置窗口 {} 已关闭", i + 1);
+            }
+        }
+        // 确保所有窗口都关闭后，再重启程序
         if let Ok(exec_path) = std::env::current_exe() {
             let _ = Command::new(exec_path).spawn();
-            log::info!("[托盘] 已请求重启主程序");
+            log::info!("[托盘] 已请求重启主程序，所有旧窗口已确保关闭");
         }
         std::process::exit(0);
     }).expect("无法添加重启程序菜单项");
