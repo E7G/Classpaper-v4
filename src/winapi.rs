@@ -757,3 +757,50 @@ pub fn setup_wallpaper(window_title: &str) -> bool {
         false
     }
 }
+
+// 错误通知功能
+pub fn show_error_notification(message: &str) {
+    use winapi::um::winuser::{MessageBoxW, MB_ICONERROR, MB_OK};
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+
+    let title = "ClassPaper 错误";
+    let title_wide: Vec<u16> = OsStr::new(title)
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+    let message_wide: Vec<u16> = OsStr::new(message)
+        .encode_wide()
+        .chain(Some(0))
+        .collect();
+
+    unsafe {
+        MessageBoxW(
+            std::ptr::null_mut(),
+            message_wide.as_ptr(),
+            title_wide.as_ptr(),
+            MB_OK | MB_ICONERROR,
+        );
+    }
+}
+
+// 显示托盘通知（使用Windows通知API）
+// 注：需要添加windows-notification特性到Cargo.toml才能启用
+// #[cfg(feature = "windows-notification")]
+pub fn show_toast_notification(message: &str) {
+    // 这里可以实现Windows 10+的Toast通知
+    // 需要额外的依赖如 windows-rs
+    // 暂时使用MessageBox作为fallback
+    show_error_notification(message);
+}
+
+// 通用的错误处理函数
+pub fn handle_window_creation_error(error: &str) {
+    let error_message = format!(
+        "无法创建alcro窗口:\n{}\n\n可能的原因:\n- Chrome/Edge浏览器未安装\n- 浏览器路径配置错误\n- 系统资源不足\n- 权限问题",
+        error
+    );
+    
+    log::error!("[ClassPaper] {}", error_message);
+    show_error_notification(&error_message);
+}
