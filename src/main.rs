@@ -166,17 +166,20 @@ fn parse_config() -> AppConfig {
             }
             config
         }
-        Err(_) => {
+        Err(e) => {
+            log::warn!("[ClassPaper] 读取配置文件失败: {}", e);
             let config = AppConfig::default();
             if let Ok(content) = toml::to_string(&config) {
                 let _ = std::fs::write("config.toml", content);
+            } else {
+                winapi::show_error_notification(&format!("配置文件创建失败\n\n无法读取或创建配置文件 config.toml\n\n错误信息: {}\n\n程序将使用默认配置运行。", e));
             }
             config
         }
     }
 }
 
-fn create_window(url: &str, window_name: &str, browser_path: &str) -> UI {
+fn create_window(url: &str, window_name: &str, browser_path: &str) -> Result<UI, Box<dyn std::error::Error>> {
     let mut builder = UIBuilder::new();
     builder.content(Content::Url(url));
     if !browser_path.is_empty() {
@@ -207,84 +210,97 @@ fn create_window(url: &str, window_name: &str, browser_path: &str) -> UI {
     }
     println!("==========================================\n");
     builder.custom_args(&chrome_args);
-    let ui = builder.run().expect("无法创建alcro窗口");
-    let _ = ui.eval(&format!("document.title = '{}';", window_name));
-    // // 自动全屏JS
-    // let fullscreen_js = r#"
-    //     (function() {
-    //         function launchFullscreen(element) {
-    //             if(element.requestFullscreen) {
-    //                 element.requestFullscreen();
-    //             } else if(element.mozRequestFullScreen) {
-    //                 element.mozRequestFullScreen();
-    //             } else if(element.webkitRequestFullscreen) {
-    //                 element.webkitRequestFullscreen();
-    //             } else if(element.msRequestFullscreen) {
-    //                 element.msRequestFullscreen();
-    //             }
-    //         }
-    //         window.addEventListener('load', function() {
-    //             setTimeout(function() {
-    //                 launchFullscreen(document.documentElement);
-    //             }, 300);
-    //         });
-    //     })();
-    // "#;
-    // let _ = ui.eval(fullscreen_js);
-    // 绑定Rust函数到JS
-    let _ = ui.bind("getWidth", |_| Ok(winapi::get_screen_width().into()));
-    let _ = ui.bind("getHeight", |_| Ok(winapi::get_screen_height().into()));
-    let _ = ui.bind("readFile", |args| {
-        if let Some(path) = args.get(0).and_then(|v| v.as_str()) {
-            match std::fs::read_to_string(path) {
-                Ok(content) => Ok(serde_json::Value::String(content)),
-                Err(e) => Err(format!("读取文件失败: {}", e).into()),
-            }
-        } else {
-            Err("参数错误".into())
-        }
-    });
-    let _ = ui.bind("writeFile", |args| {
-        if let (Some(path), Some(content)) = (
-            args.get(0).and_then(|v| v.as_str()),
-            args.get(1).and_then(|v| v.as_str()),
-        ) {
-            match std::fs::write(path, content) {
-                Ok(_) => Ok(true.into()),
-                Err(e) => Err(format!("写入文件失败: {}", e).into()),
-            }
-        } else {
-            Err("参数错误".into())
-        }
-    });
-    let _ = ui.bind("readDir", |args| {
-        if let Some(dir) = args.get(0).and_then(|v| v.as_str()) {
-            match std::fs::read_dir(dir) {
-                Ok(entries) => {
-                    let names: Vec<_> = entries
-                        .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().to_string()))
-                        .collect();
-                    Ok(names.into())
+    
+    match builder.run() {
+        Ok(ui) => {
+            let _ = ui.eval(&format!("document.title = '{}';", window_name));
+            // // 自动全屏JS
+            // let fullscreen_js = r#"
+            //     (function() {
+            //         function launchFullscreen(element) {
+            //             if(element.requestFullscreen) {
+            //                 element.requestFullscreen();
+            //             } else if(element.mozRequestFullScreen) {
+            //                 element.mozRequestFullScreen();
+            //             } else if(element.webkitRequestFullscreen) {
+            //                 element.webkitRequestFullscreen();
+            //             } else if(element.msRequestFullscreen) {
+            //                 element.msRequestFullscreen();
+            //             }
+            //         }
+            //         window.addEventListener('load', function() {
+            //             setTimeout(function() {
+            //                 launchFullscreen(document.documentElement);
+            //             }, 300);
+            //         });
+            //     })();
+            // "#;
+            // let _ = ui.eval(fullscreen_js);
+            // 绑定Rust函数到JS
+            let _ = ui.bind("getWidth", |_| Ok(winapi::get_screen_width().into()));
+            let _ = ui.bind("getHeight", |_| Ok(winapi::get_screen_height().into()));
+            let _ = ui.bind("readFile", |args| {
+                if let Some(path) = args.get(0).and_then(|v| v.as_str()) {
+                    match std::fs::read_to_string(path) {
+                        Ok(content) => Ok(serde_json::Value::String(content)),
+                        Err(e) => Err(format!("读取文件失败: {}", e).into()),
+                    }
+                } else {
+                    Err("参数错误".into())
                 }
-                Err(e) => Err(format!("读取目录失败: {}", e).into()),
-            }
-        } else {
-            Err("参数错误".into())
+            });
+            let _ = ui.bind("writeFile", |args| {
+                if let (Some(path), Some(content)) = (
+                    args.get(0).and_then(|v| v.as_str()),
+                    args.get(1).and_then(|v| v.as_str()),
+                ) {
+                    match std::fs::write(path, content) {
+                        Ok(_) => Ok(true.into()),
+                        Err(e) => Err(format!("写入文件失败: {}", e).into()),
+                    }
+                } else {
+                    Err("参数错误".into())
+                }
+            });
+            let _ = ui.bind("readDir", |args| {
+                if let Some(dir) = args.get(0).and_then(|v| v.as_str()) {
+                    match std::fs::read_dir(dir) {
+                        Ok(entries) => {
+                            let names: Vec<_> = entries
+                                .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().to_string()))
+                                .collect();
+                            Ok(names.into())
+                        }
+                        Err(e) => Err(format!("读取目录失败: {}", e).into()),
+                    }
+                } else {
+                    Err("参数错误".into())
+                }
+            });
+            Ok(ui)
         }
-    });
-    ui
+        Err(e) => {
+            let error_str = format!("{}", e);
+            winapi::handle_window_creation_error(&error_str);
+            Err(Box::new(e))
+        }
+    }
 }
 
 // cleanup_profile_dir 已移除
 
 fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
     let settings_path = normalize_url("./res/settings.html");
-    let settings_ui = Arc::new(
-        UIBuilder::new()
-            .content(Content::Url(&settings_path))
-            .run()
-            .expect("无法创建设置窗口"),
-    );
+    let settings_ui = match UIBuilder::new()
+        .content(Content::Url(&settings_path))
+        .run() {
+        Ok(ui) => Arc::new(ui),
+        Err(e) => {
+            let error_str = format!("{}", e);
+            winapi::handle_window_creation_error(&format!("无法创建设置窗口: {}", error_str));
+            return;
+        }
+    };
 
     // 绑定 readConfig
     let _ = settings_ui.bind("readConfig", |_| {
@@ -339,7 +355,10 @@ fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
             // 先解析为 serde_json::Value
             let value: serde_json::Value = match serde_json::from_str(config_json) {
                 Ok(v) => v,
-                Err(e) => return Err(format!("解析配置JSON失败: {}", e).into()),
+                Err(e) => {
+                    winapi::show_error_notification(&format!("配置解析失败\n\n无法解析配置数据\n\n错误信息: {}\n\n请检查输入的配置格式是否正确。", e));
+                    return Err(format!("解析配置JSON失败: {}", e).into());
+                }
             };
             // 只序列化 Default 字段为 [Default] 段，字段名大写
             let mut toml_map = toml::map::Map::new();
@@ -353,12 +372,18 @@ fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
             let toml_value = toml::Value::Table(toml_map);
             let toml_str = match toml::to_string(&toml_value) {
                 Ok(s) => s,
-                Err(e) => return Err(format!("序列化TOML失败: {}", e).into()),
+                Err(e) => {
+                    winapi::show_error_notification(&format!("配置序列化失败\n\n无法将配置转换为TOML格式\n\n错误信息: {}\n\n请检查配置数据格式。", e));
+                    return Err(format!("序列化TOML失败: {}", e).into());
+                }
             };
             // 写入文件
             match std::fs::write("config.toml", toml_str) {
                 Ok(_) => Ok(true.into()),
-                Err(e) => Err(format!("写入配置失败: {}", e).into()),
+                Err(e) => {
+                    winapi::show_error_notification(&format!("配置保存失败\n\n无法保存配置文件 config.toml\n\n错误信息: {}\n\n可能原因：\n• 文件权限不足\n• 文件被其他程序占用\n• 磁盘空间不足\n\n请检查文件权限或重启程序后再试。", e));
+                    Err(format!("写入配置失败: {}", e).into())
+                }
             }
         } else {
             Err("参数错误".into())
@@ -372,7 +397,10 @@ fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
         ) {
             match std::fs::write(path, content) {
                 Ok(_) => Ok(true.into()),
-                Err(e) => Err(format!("写入文件失败: {}", e).into()),
+                Err(e) => {
+                    winapi::show_error_notification(&format!("文件写入失败\n\n无法写入文件: {}\n\n错误信息: {}\n\n可能原因：\n• 文件权限不足\n• 文件被其他程序占用\n• 磁盘空间不足\n• 路径不存在", path, e));
+                    Err(format!("写入文件失败: {}", e).into())
+                }
             }
         } else {
             Err("参数错误".into())
@@ -381,19 +409,25 @@ fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
     // 绑定 scanWallpaperDir
     let _ = settings_ui.bind("scanWallpaperDir", |_| {
         let mut wallpapers = Vec::new();
-        if let Ok(entries) = std::fs::read_dir("res/wallpaper") {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                        let ext = ext.to_lowercase();
-                        if ext == "jpg" || ext == "jpeg" || ext == "png" || ext == "gif" {
-                            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                                wallpapers.push(format!("wallpaper/{}", name));
+        match std::fs::read_dir("res/wallpaper") {
+            Ok(entries) => {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_file() {
+                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                            let ext = ext.to_lowercase();
+                            if ext == "jpg" || ext == "jpeg" || ext == "png" || ext == "gif" {
+                                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                                    wallpapers.push(format!("wallpaper/{}", name));
+                                }
                             }
                         }
                     }
                 }
+            }
+            Err(e) => {
+                winapi::show_error_notification(&format!("壁纸目录扫描失败\n\n无法扫描壁纸目录: res/wallpaper\n\n错误信息: {}\n\n可能原因：\n• 目录不存在\n• 权限不足\n• 路径错误\n\n请检查壁纸目录是否存在并有读取权限。", e));
+                log::warn!("[ClassPaper] 扫描壁纸目录失败: {}", e);
             }
         }
         Ok(serde_json::Value::Array(
@@ -423,7 +457,10 @@ fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
             let result = Command::new("xdg-open").arg(url).spawn();
             match result {
                 Ok(_) => Ok(true.into()),
-                Err(e) => Err(format!("打开浏览器失败: {}", e).into()),
+                Err(e) => {
+                    winapi::show_error_notification(&format!("浏览器打开失败\n\n无法打开链接: {}\n\n错误信息: {}\n\n可能原因：\n• 未安装默认浏览器\n• 浏览器路径配置错误\n• 系统关联设置问题\n\n请检查浏览器设置或手动访问该链接。", url, e));
+                    Err(format!("打开浏览器失败: {}", e).into())
+                }
             }
         } else {
             Err("参数错误".into())
@@ -523,6 +560,7 @@ fn setup_desktop_penetration(window_name: &str) {
         log::info!("[ClassPaper] 桌面穿透设置成功");
     } else {
         log::error!("[ClassPaper] 桌面穿透设置失败");
+        winapi::show_error_notification("桌面穿透设置失败\n\n可能原因：\n• 系统权限不足\n• 桌面窗口被其他程序占用\n• Windows版本兼容性问题\n\n请尝试以管理员身份运行程序，或查看app.log获取详细信息。");
     }
 }
 
@@ -537,6 +575,7 @@ fn main() -> std::io::Result<()> {
     let log_config = builder.build();
     let log_file = std::fs::OpenOptions::new().create(true).append(true).open("app.log").unwrap_or_else(|e| {
         eprintln!("[日志] 无法打开 app.log: {}，日志将输出到 stderr/nul", e);
+        winapi::show_error_notification(&format!("日志文件创建失败\n\n无法创建或写入日志文件 app.log\n\n错误信息: {}\n\n程序将继续运行，但日志将不会保存到文件。", e));
         #[cfg(windows)]
         { std::fs::OpenOptions::new().write(true).open("nul").unwrap() }
         #[cfg(not(windows))]
@@ -545,11 +584,14 @@ fn main() -> std::io::Result<()> {
     let log_level = std::env::var("RUST_LOG").ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(LevelFilter::Info);
-    CombinedLogger::init(vec![
+    if let Err(e) = CombinedLogger::init(vec![
         WriteLogger::new(log_level, log_config.clone(), log_file),
         #[cfg(debug_assertions)]
         TermLogger::new(LevelFilter::Debug, log_config, TerminalMode::Mixed, ColorChoice::Auto),
-    ]).expect("无法初始化日志");
+    ]) {
+        log::error!("[ClassPaper] 日志系统初始化失败: {}", e);
+        winapi::show_error_notification(&format!("日志系统初始化失败\n\n无法初始化日志系统\n\n错误信息: {}\n\n程序将继续运行，但日志功能可能受限。", e));
+    }
     log::info!("[ClassPaper] 日志系统初始化完成，日志级别: {:?}", log_level);
     // DPI感知
     winapi::set_dpi_aware();
@@ -566,13 +608,28 @@ fn main() -> std::io::Result<()> {
     // ctrlc 优雅退出
     let app_state_ctrlc = Arc::clone(&app_state);
     let app_state_ctrlc2 = Arc::clone(&app_state_ctrlc);
-    ctrlc::set_handler(move || {
+    if let Err(e) = ctrlc::set_handler(move || {
         log::warn!("[ClassPaper] 收到 Ctrl+C 信号，准备优雅退出");
         close_all_and_exit(&app_state_ctrlc2);
-    })
-    .expect("设置 ctrlc 失败");
-    let mut tray = TrayItem::new("ClassPaper", tray_item::IconSource::Resource("IDI_ICON1"))
-        .expect("无法创建系统托盘");
+    }) {
+        log::error!("[ClassPaper] 设置 Ctrl+C 处理程序失败: {}", e);
+        winapi::show_error_notification(&format!("信号处理设置失败\n\n无法设置程序退出信号处理\n\n错误信息: {}\n\n程序仍可正常运行，但可能无法优雅退出。", e));
+    }
+    let mut tray = match TrayItem::new("ClassPaper", tray_item::IconSource::Resource("IDI_ICON1")) {
+        Ok(tray) => tray,
+        Err(e) => {
+            log::error!("[ClassPaper] 无法创建系统托盘: {}", e);
+            winapi::show_error_notification(&format!("系统托盘创建失败\n\n无法创建系统托盘图标\n\n错误信息: {}\n\n程序仍可运行，但将无法通过托盘菜单操作。", e));
+            // 创建一个虚拟的托盘对象，允许程序继续运行
+            match TrayItem::new("ClassPaper", tray_item::IconSource::Resource("IDI_ICON1")) {
+                Ok(tray) => tray,
+                Err(_) => {
+                    // 如果仍然失败，程序可以继续运行但无托盘功能
+                    return Ok(());
+                }
+            }
+        }
+    };
     log::info!("[ClassPaper] 托盘已创建");
     let app_state_reload = Arc::clone(&app_state);
     tray.add_menu_item("重载网页", move || {
@@ -599,15 +656,31 @@ fn main() -> std::io::Result<()> {
         let url = normalize_url(&config.default.url);
         let browser_path = config.default.browser_path.clone();
         let mut state = app_state_restart.lock().unwrap();
+        // 严格关闭所有旧窗口（包括主窗口和设置窗口）
         if let Some(ref window) = state.window {
-            log::info!("[ClassPaper] 关闭旧主窗口");
+            log::info!("[ClassPaper] 正在关闭旧主窗口...");
             window.close_blocking(3000);
+            log::info!("[ClassPaper] 旧主窗口已关闭");
         }
-        let new_window = Arc::new(create_window(&url, &state.window_name, &browser_path));
-        log::info!("[ClassPaper] 新主窗口已创建");
-        state.window = Some(new_window.clone());
-        setup_desktop_penetration(&state.window_name);
-        log::debug!("[托盘] 已请求重启网页显示程序并设置桌面穿透");
+        for (i, win) in state.settings_windows.iter().enumerate() {
+            log::info!("[ClassPaper] 正在关闭设置窗口 {}...", i + 1);
+            win.close_blocking(3000);
+            log::info!("[ClassPaper] 设置窗口 {} 已关闭", i + 1);
+        }
+        state.settings_windows.clear(); // 清空设置窗口列表
+        // 确保所有窗口都关闭后，再创建新窗口
+        match create_window(&url, &state.window_name, &browser_path) {
+            Ok(new_ui) => {
+                let new_window = Arc::new(new_ui);
+                log::info!("[ClassPaper] 新主窗口已创建");
+                state.window = Some(new_window.clone());
+                setup_desktop_penetration(&state.window_name);
+                log::debug!("[托盘] 已请求重启网页显示程序并设置桌面穿透，所有旧窗口已确保关闭");
+            }
+            Err(_) => {
+                log::error!("[ClassPaper] 重启网页显示程序失败");
+            }
+        }
     })
     .expect("无法添加重启菜单项");
     let app_state_settings = Arc::clone(&app_state);
@@ -617,12 +690,27 @@ fn main() -> std::io::Result<()> {
         log::debug!("[托盘] 已请求打开设置窗口");
     })
     .expect("无法添加设置菜单项");
-    let _app_state_restart_app = Arc::clone(&app_state);
+    let app_state_restart_app = Arc::clone(&app_state);
     tray.add_menu_item("重启程序", move || {
         log::warn!("[托盘] 点击了重启主程序");
+        // 先严格关闭所有窗口
+        {
+            let state = app_state_restart_app.lock().unwrap();
+            if let Some(ref window) = state.window {
+                log::info!("[ClassPaper] 正在关闭主窗口...");
+                window.close_blocking(3000);
+                log::info!("[ClassPaper] 主窗口已关闭");
+            }
+            for (i, win) in state.settings_windows.iter().enumerate() {
+                log::info!("[ClassPaper] 正在关闭设置窗口 {}...", i + 1);
+                win.close_blocking(3000);
+                log::info!("[ClassPaper] 设置窗口 {} 已关闭", i + 1);
+            }
+        }
+        // 确保所有窗口都关闭后，再重启程序
         if let Ok(exec_path) = std::env::current_exe() {
             let _ = Command::new(exec_path).spawn();
-            log::info!("[托盘] 已请求重启主程序");
+            log::info!("[托盘] 已请求重启主程序，所有旧窗口已确保关闭");
         }
         std::process::exit(0);
     }).expect("无法添加重启程序菜单项");
@@ -633,11 +721,17 @@ fn main() -> std::io::Result<()> {
         close_all_and_exit(&app_state_quit2);
     })
     .expect("无法添加退出菜单项");
-    let window = Arc::new(create_window(
+    let window = match create_window(
         &url,
         &window_name,
         &config.default.browser_path,
-    ));
+    ) {
+        Ok(ui) => Arc::new(ui),
+        Err(_) => {
+            // 错误已经在create_window中处理了
+            std::process::exit(1);
+        }
+    };
     log::info!("[ClassPaper] 主窗口已创建: {}", window_name);
     let mut state = app_state.lock().unwrap();
     state.window = Some(window);

@@ -55,3 +55,4 @@ convert_icon.py
 # config.toml
 /referrence
 /output
+/dist
