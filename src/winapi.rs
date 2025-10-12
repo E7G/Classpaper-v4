@@ -40,14 +40,6 @@ static TARGET: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(ptr::null_mut::
 static SEARCH_TITLE: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
 static LAST_FAIL_TITLE: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 
-pub fn get_screen_width() -> i32 {
-    unsafe { GetSystemMetrics(SM_CXSCREEN) }
-}
-
-pub fn get_screen_height() -> i32 {
-    unsafe { GetSystemMetrics(SM_CYSCREEN) }
-}
-
 pub fn set_dpi_aware() -> bool {
     unsafe { SetProcessDPIAware() != 0 }
 }
@@ -782,16 +774,6 @@ pub fn show_error_notification(message: &str) {
             MB_OK | MB_ICONERROR,
         );
     }
-}
-
-// 显示托盘通知（使用Windows通知API）
-// 注：需要添加windows-notification特性到Cargo.toml才能启用
-// #[cfg(feature = "windows-notification")]
-pub fn show_toast_notification(message: &str) {
-    // 这里可以实现Windows 10+的Toast通知
-    // 需要额外的依赖如 windows-rs
-    // 暂时使用MessageBox作为fallback
-    show_error_notification(message);
 }
 
 // 通用的错误处理函数

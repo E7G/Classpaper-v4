@@ -236,47 +236,7 @@ fn create_window(url: &str, window_name: &str, browser_path: &str) -> Result<UI,
             //     })();
             // "#;
             // let _ = ui.eval(fullscreen_js);
-            // 绑定Rust函数到JS
-            let _ = ui.bind("getWidth", |_| Ok(winapi::get_screen_width().into()));
-            let _ = ui.bind("getHeight", |_| Ok(winapi::get_screen_height().into()));
-            let _ = ui.bind("readFile", |args| {
-                if let Some(path) = args.get(0).and_then(|v| v.as_str()) {
-                    match std::fs::read_to_string(path) {
-                        Ok(content) => Ok(serde_json::Value::String(content)),
-                        Err(e) => Err(format!("读取文件失败: {}", e).into()),
-                    }
-                } else {
-                    Err("参数错误".into())
-                }
-            });
-            let _ = ui.bind("writeFile", |args| {
-                if let (Some(path), Some(content)) = (
-                    args.get(0).and_then(|v| v.as_str()),
-                    args.get(1).and_then(|v| v.as_str()),
-                ) {
-                    match std::fs::write(path, content) {
-                        Ok(_) => Ok(true.into()),
-                        Err(e) => Err(format!("写入文件失败: {}", e).into()),
-                    }
-                } else {
-                    Err("参数错误".into())
-                }
-            });
-            let _ = ui.bind("readDir", |args| {
-                if let Some(dir) = args.get(0).and_then(|v| v.as_str()) {
-                    match std::fs::read_dir(dir) {
-                        Ok(entries) => {
-                            let names: Vec<_> = entries
-                                .filter_map(|e| e.ok().map(|e| e.file_name().to_string_lossy().to_string()))
-                                .collect();
-                            Ok(names.into())
-                        }
-                        Err(e) => Err(format!("读取目录失败: {}", e).into()),
-                    }
-                } else {
-                    Err("参数错误".into())
-                }
-            });
+            // 主窗口不绑定任何 Rust 函数到 JS
             Ok(ui)
         }
         Err(e) => {
