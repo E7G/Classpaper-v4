@@ -2403,7 +2403,7 @@
                 };
                 CONFIG.events = getEventData();
                 CONFIG.wallpapers = getWallpaperData();
-                CONFIG.sth = getNoticeData();
+                CONFIG.note = getNoticeData();
 
                 // 保存课表显示模式
                 CONFIG.lessons.displayMode = document.getElementById('display-mode-scroll').checked ? 'scroll' : 'day';
@@ -2418,8 +2418,7 @@
                 CONFIG.progressPercentMode = document.getElementById('progress-percent-left').checked ? 'left' : 'passed';
 
                 // 保存config.js
-                const configContent = `const CONFIG = ${JSON.stringify(CONFIG, null, 2)};
-`;
+                const configContent = `const CONFIG = ${JSON.stringify(CONFIG, null, 2)};`;
 
                 try {
                     if (typeof window.writeFile !== 'function') {
