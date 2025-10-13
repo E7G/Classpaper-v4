@@ -1,0 +1,270 @@
+/* ClassPaper 主题系统 - 消除所有硬编码颜色 */
+:root {
+  /* Apple/Fluent UI 色彩系统 */
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  
+  /* 玻璃拟态效果 - 消除硬编码透明度 */
+  --glass-bg-rgb: 255, 255, 255;
+  --glass-bg: rgba(var(--glass-bg-rgb), var(--glass-opacity, 0.1));
+  --glass-border: rgba(var(--glass-bg-rgb), var(--glass-border-opacity, 0.2));
+  --glass-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  --glass-blur: blur(var(--blur-strength, 20px));
+  --glass-opacity: 0.1;
+  --glass-border-opacity: 0.2;
+  --blur-strength: 20px;
+  
+  /* 文字色彩 */
+  --text-primary: #1a1a1a;
+  --text-secondary: #666;
+  --text-light: #999;
+  
+  /* 间距系统 */
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-xxl: 2.5rem;
+  
+  /* 圆角系统 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  
+  /* 过渡动画 */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* 深色主题 - 消除硬编码颜色反转 */
+[data-theme="dark"] {
+  --glass-bg-rgb: 30, 30, 30;
+  --glass-opacity: 0.15;
+  --glass-border-opacity: 0.1;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --text-light: #888888;
+}
+
+/* 基础重置 - 消除所有浏览器差异 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 统一字体系统 */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+/* Apple/Fluent UI 按钮系统 - 消除重复按钮样式，增强玻璃拟态 */
+.btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  background: rgba(var(--glass-bg-rgb), var(--glass-opacity, 0.1));
+  backdrop-filter: blur(10px);
+  color: var(--text-primary);
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-primary {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+}
+
+/* 玻璃拟态卡片 - 消除重复卡片样式，增强壁纸融合 */
+.glass-card {
+  background: rgba(var(--glass-bg-rgb), var(--glass-opacity, 0.1));
+  backdrop-filter: var(--glass-blur);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--glass-border);
+  transition: all var(--transition-normal);
+}
+
+/* 壁纸融合增强 - 根据背景自适应 */
+.glass-card.wallpaper-integrated {
+  --glass-opacity: 0.05;
+  --glass-border-opacity: 0.1;
+  --blur-strength: 40px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+.glass-card.wallpaper-integrated:hover {
+  --glass-opacity: 0.08;
+  --glass-border-opacity: 0.15;
+}
+
+/* 表单系统 - 消除重复表单样式，增强玻璃拟态 */
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  background: rgba(var(--glass-bg-rgb), 0.3);
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(10px);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color, #667eea);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  background: rgba(var(--glass-bg-rgb), 0.4);
+}
+
+/* 状态徽章 - 增强玻璃拟态 */
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(var(--glass-bg-rgb), 0.2);
+  color: var(--text-secondary);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(5px);
+}
+
+.status-badge.current {
+  background: var(--success-gradient);
+  color: white;
+  border: none;
+}
+
+.status-badge.next {
+  background: var(--warning-gradient);
+  color: white;
+  border: none;
+}
+
+/* 布局系统 - 消除重复布局代码 */
+.container-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--spacing-xl);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-md); */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.logo {
+  width: 48px;
+  height: 48px;
+  background: var(--primary-gradient);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .container-right {
+    padding: var(--spacing-md);
+  }
+  
+  .glass-card {
+    padding: var(--spacing-lg);
+  }
+  
+  .title {
+    font-size: 1.5rem;
+  }
+}

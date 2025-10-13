@@ -232,16 +232,6 @@ const CONFIG = {
   "wallpaperInterval": 30,
   "progressDescription": "高三剩余",
   "progressPercentMode": "left",
-  "sth": "一鸣从此始，相望青云端"
+  "note": "一鸣从此始，相望青云端"
 };
 
-// 为了保持向后兼容，导出原有的变量名
-const lessons = CONFIG.lessons.headers.join(",") + "\n" + 
-  CONFIG.lessons.schedule.map(day => " ," + day.day + "," + day.classes.join(",")).join("\n") + "\n";
-
-const events = "事件,日期,\n" + 
-  CONFIG.events.map(event => `${event.name},${event.date},`).join("\n");
-
-const wallpaperlist = CONFIG.wallpapers;
-
-const sth = CONFIG.sth;

@@ -1,86 +1,861 @@
-﻿<!doctype html>
-<html lang="zh" data-theme="dark">
-
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="css/pico.css">
-    <link rel="stylesheet" href="css/custom.css">
-    <title>背景课表</title>
-    <script src="config/config.js"></script>
-    <!-- 音频通知 -->
-    <audio id="regularNotification" src="audio/regular_notification.mp3" preload="auto"></audio>
-    <audio id="endingNotification" src="audio/ending_notification.mp3" preload="auto"></audio>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassPaper - 课程表</title>
+    <link rel="icon" href="favicon.ico">
+    <link href="./css/all.min.css" rel="stylesheet">
+    <link href="./css/css2.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-primary);
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+            color: var(--text-primary);
+        }
+
+        .wallpaper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: -1;
+            transition: background-image 1s ease-in-out;
+        }
+
+        .wallpaper::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                135deg,
+                rgba(0, 0, 0, 0.1) 0%,
+                rgba(0, 0, 0, 0.3) 100%
+            );
+            backdrop-filter: blur(2px);
+        }
+
+        .container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            min-height: 100vh;
+            padding: 0.5rem;
+        }
+
+        .main-panel {
+            composes: glass-card wallpaper-integrated;
+            padding: 1rem;
+            margin-right: 1rem;
+            max-height: 95vh;
+            width: 50%;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+        }
+
+        .main-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .main-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .main-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .main-panel::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background: rgba(var(--glass-bg-rgb), 0.2);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .title-section {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            background: var(--primary-gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+        }
+
+        /* .title {
+            font-size: 3rem;
+            font-weight: 300;
+            color: var(--text-primary);
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            line-height: 1.2;
+            vertical-align: baseline;
+        } */
+
+        .subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+            font-weight: 400;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.2ch;
+            opacity: 0.9;
+            text-align: center;
+            line-height: 1.2;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 翻页时钟动画 - 固定宽度版本 */
+        .flip-digit {
+            display: inline-block;
+            position: relative;
+            width: 1ch;
+            height: 60px;
+            overflow: hidden;
+            vertical-align: middle;
+            transform: translateZ(0); /* 硬件加速 */
+            backface-visibility: hidden;
+            font-size: 48px;
+            line-height: 60px;
+            text-align: center;
+        }
+
+        .flip-digit .digit-old,
+        .flip-digit .digit-new {
+            position: absolute;
+            left: 0;
+            width: 1ch;
+            height: 60px;
+            font-size: 48px;
+            line-height: 60px;
+            text-align: center;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        .flip-digit .digit-old {
+            transform: translateY(0);
+            animation: slideDownOld 0.6s ease-in-out forwards;
+        }
+
+        .flip-digit .digit-new {
+            transform: translateY(-60px);
+            animation: slideInNew 0.6s ease-in-out forwards;
+        }
+
+        @keyframes slideDownOld {
+            0% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(60px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes slideInNew {
+            0% {
+                transform: translateY(-60px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0ch;
+            line-height: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .controls {
+            display: none;
+        }
+
+        .schedule-container {
+            composes: glass-card wallpaper-integrated;
+            padding: 0.5rem;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+            /* 自适应高度 - 根据内容自动调整 */
+            height: auto;
+            max-height: none;
+            overflow-y: visible;
+        }
+
+        /* 移除滚动条样式 - 不再需要 */
+        .schedule-grid::-webkit-scrollbar {
+            display: none;
+        }
+
+        .course-card {
+            composes: glass-card wallpaper-integrated;
+            padding: 0.8rem 1rem;
+            border-radius: var(--radius-md);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-height: 70px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .course-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .course-card.current {
+            border-left: 3px solid var(--primary-color);
+            background: rgba(var(--primary-rgb, 102, 126, 234), 0.2);
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .course-card.next {
+            border-left: 3px solid var(--warning-color);
+            background: rgba(var(--warning-rgb, 245, 158, 11), 0.2);
+            transform: scale(1.01);
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+        }
+
+        .course-card.past {
+            opacity: 0.5;
+            border-left: 2px solid var(--text-secondary);
+        }
+
+        .course-time {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.2rem;
+        }
+
+        .course-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.1rem;
+        }
+
+        .course-period {
+            position: absolute;
+            top: 0.4rem;
+            right: 0.4rem;
+            background: var(--primary-gradient);
+            color: white;
+            padding: 0.1rem 0.4rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .course-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            font-size: 0.8rem;
+            margin-top: 0.1rem;
+        }
+
+        .status-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+
+        .course-card.next .status-indicator {
+            background: var(--warning-color);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .course-card.empty {
+            opacity: 0.4;
+            border-left: 2px solid var(--text-secondary);
+            min-height: 50px;
+        }
+
+        .course-card.empty .course-name {
+            font-style: italic;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .course-card.empty .course-period {
+            background: var(--text-secondary);
+            font-size: 0.7rem;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            background: rgba(var(--glass-bg-rgb), 0.1);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            display: none;
+        }
+
+        .schedule-table th,
+        .schedule-table td {
+            padding: 0.75rem;
+            text-align: center;
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+        }
+
+        .schedule-table th {
+            background: var(--primary-gradient);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .schedule-table tr:nth-child(even) {
+            background: rgba(var(--glass-bg-rgb), 0.05);
+        }
+
+        .schedule-table tr:hover {
+            background: rgba(var(--glass-bg-rgb), 0.1);
+        }
+
+        .current-period {
+            background: var(--primary-gradient) !important;
+            color: white;
+            font-weight: 600;
+        }
+
+        .next-period {
+            background: var(--warning-gradient) !important;
+            color: white;
+            font-weight: 600;
+        }
+
+        .info-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .info-card {
+            composes: glass-card wallpaper-integrated;
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .info-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+        }
+
+        .info-card h3::before {
+            content: '';
+            position: absolute;
+            bottom: -0.3rem;
+            left: 0;
+            width: 30px;
+            height: 2px;
+            background: var(--primary-gradient);
+            border-radius: 2px;
+        }
+
+        .info-card h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(var(--glass-bg-rgb), 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(var(--glass-bg-rgb), 0.2);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+            background-size: 200% 100%;
+            border-radius: 7px;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            animation: progress-gradient 3s ease infinite;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: progress-shine 2s infinite;
+        }
+
+        @keyframes progress-shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        @keyframes progress-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            opacity: 0.9;
+        }
+
+        .progress-days {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .event-item {
+            composes: glass-card wallpaper-integrated;
+            padding: 1rem 1.2rem;
+            margin-bottom: 0.8rem;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(135deg, rgba(var(--warning-rgb, 245, 158, 11), 0.12), rgba(var(--warning-rgb, 245, 158, 11), 0.03));
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            box-shadow: 0 3px 15px rgba(245, 158, 11, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(var(--warning-rgb, 245, 158, 11), 0.15);
+        }
+
+        .event-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 25px rgba(245, 158, 11, 0.2);
+        }
+
+        .event-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .countdown-container {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .countdown-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--warning-color);
+            line-height: 1.2;
+            text-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+        }
+
+        .countdown-unit {
+            font-size: 1rem;
+            color: var(--warning-color);
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .event-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            opacity: 0.9;
+            margin-top: 0.3rem;
+        }
+
+        .note {
+            composes: glass-card wallpaper-integrated;
+            text-align: center;
+            margin-top: 1rem;
+            padding: 1rem;
+            border-left: 4px solid var(--primary-color);
+            background: linear-gradient(135deg, rgba(var(--primary-rgb, 102, 126, 234), 0.15), rgba(var(--primary-rgb, 102, 126, 234), 0.05));
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--radius-lg);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.15);
+        }
+
+        .note::before {
+            content: '\f0eb';
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            position: absolute;
+            top: 0.8rem;
+            left: 0.8rem;
+            font-size: 1.8rem;
+            color: var(--primary-color);
+            opacity: 0.15;
+            text-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .note-content {
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            font-weight: 400;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+            letter-spacing: 0.05em;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            text-align: center;
+            padding: 0.3rem 0.5rem;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
+        }
+
+        .note.empty {
+            opacity: 0.7;
+            border-left-color: var(--text-secondary);
+            background: rgba(var(--glass-bg-rgb), 0.05);
+        }
+
+        .note.empty::before {
+            content: '\f303';
+            color: var(--text-secondary);
+        }
+
+        .note.empty .note-content {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-content {
+            composes: glass-card;
+            --glass-opacity: 0.95;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(var(--glass-bg-rgb), 0.1);
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: rgba(var(--glass-bg-rgb), 0.3);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color, #667eea);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: rgba(var(--glass-bg-rgb), 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .main-panel {
+                margin-right: 1rem;
+                padding: 1.5rem;
+            }
+            
+            .info-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .schedule-table {
+                font-size: 0.8rem;
+            }
+            
+            .schedule-table th,
+            .schedule-table td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
 </head>
-
-<body id="body-html" style="overflow:hidden;">
-
-    <main class="container-fluid">
-        <div id="glass">
-            <div class="grid" id="classtable">
-                <div id="c0">星期</div>
-                <div id="c1">早读</div>
-                <div id="c2">第1节课</div>
-                <div id="c3">第2节课</div>
-                <div id="c4">第3节课</div>
-                <div id="c5">第4节课</div>
-                <div id="c6">第5节课</div>
-                <div id="c7">第6节课</div>
-                <div id="c8">第7节课</div>
-                <div id="c9">第8节课</div>
-                <div id="c10">晚修1</div>
-                <div id="c11">晚修2</div>
-            </div>
-            <progress id="nav-pro" value="25" max="100" hidden></progress>
-            <script src="js/class.js"></script>
-            <section>
-                <div class="grid">
-                    <!-- 记忆功能可选启用
-                    <div class="emtry">
-                        <article id="remember">
-                            <div id="remember-txt"></div>
-                            <progress id="rem-pro" max="60" hidden></progress>
-                        </article>
-                        <script src="js/remember.js"></script>
+<body>
+    <div class="wallpaper" id="wallpaper"></div>
+    
+    <div class="container">
+        <div class="main-panel">
+            <div class="header">
+                <div class="title-section">
+                    <div class="logo">
+                        <i class="fas fa-calendar-alt"></i>
                     </div>
-                    -->
                     <div>
-                        <article id="clockart">
-                            <header hidden>
-                                <a href="#close" aria-label="关闭" class="close"></a>
-                                ⏰ 时钟
-                            </header>
-                            | <strong id="time-a">时间</strong> |
-                            <strong id="date-a">日期</strong> |
-                            <strong id="weekday-a">星期</strong>
-                            <br>|
-                            <strong id="week-a">周次</strong> |
-                            <strong id="prog-description"></strong>
-                            <progress id="prog" value="25" max="100"></progress>
-                        </article>
-                        <article id="calart">
-                            <header hidden>
-                                <a href="#close" aria-label="关闭" class="close"></a>
-                                📅 事件日历
-                            </header>
-                            <ul id="evcal"></ul>
-                        </article>
-                        <script src="js/event_cal.js"></script>
-                        <article id="helpart">
-                            <header hidden>
-                                <a href="#close" aria-label="关闭" class="close"></a>
-                                📚 告示牌
-                            </header>
-                            <div id="help"></div>
-                        </article>
-                        <script src="js/help.js"></script>
+                        <h1 class="title" id="clockTime">00:00:00</h1>
+                        <p class="subtitle" id="currentDate"></p>
                     </div>
                 </div>
-            </section>
+            </div>
+
+            <div class="schedule-container">
+                <div class="schedule-grid" id="scheduleGrid"></div>
+                <table class="schedule-table" id="scheduleTable">
+                    <thead id="scheduleHeader"></thead>
+                    <tbody id="scheduleBody"></tbody>
+                </table>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-card">
+                    <h3><i class="fas fa-chart-line"></i> 学习进度</h3>
+                    <div class="progress-info">
+                        <span class="progress-title" id="progressTitle">高三剩余</span>
+                        <span class="progress-days" id="progressDays">237 天</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3><i class="fas fa-calendar-check"></i> 重要事件</h3>
+                    <div id="eventsList">
+                        <div class="event-item">
+                            <div class="countdown-container">
+                                <div class="countdown-number">238</div>
+                                <div class="countdown-unit">天</div>
+                            </div>
+                            <div class="event-title">高考</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="note" id="note">
+                <div class="note-content">一鸣从此始，相望青云端</div>
+            </div>
         </div>
-    </main>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>设置</h2>
+                <button class="close-btn" id="closeSettingsBtn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="form-group">
+                <label for="wallpaperInterval">壁纸切换间隔（秒）</label>
+                <input type="number" id="wallpaperInterval" min="5" max="3600" value="30">
+            </div>
+
+            <div class="form-group">
+                <label for="progressDescription">进度描述</label>
+                <input type="text" id="progressDescription" placeholder="例如：高三剩余">
+            </div>
+
+            <div class="form-group">
+                <label for="weekOffset">周偏移量</label>
+                <input type="number" id="weekOffset" min="0" max="52" value="7">
+            </div>
+
+            <div class="form-group">
+                <label for="notifications">启用通知</label>
+                <select id="notifications">
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="noteText">备注</label>
+                <textarea id="noteText" rows="3" placeholder="输入备注信息"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button class="btn btn-primary" id="saveSettingsBtn">
+                    <i class="fas fa-save"></i>
+                    保存设置
+                </button>
+                <button class="btn btn-secondary" id="cancelSettingsBtn">
+                    <i class="fas fa-times"></i>
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <link rel="stylesheet" href="css/theme.css">
+    <script src="config/config.js"></script>
+    <script src="js/core.js"></script>
     <script src="js/main.js"></script>
 </body>
-
 </html>
