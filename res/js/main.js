@@ -41,22 +41,32 @@ class MainInterface {
     this.renderProgress();
     this.renderEvents();
     this.renderNote();
-    this.startWallpaper();
+    // 异步启动壁纸系统
+    this.startWallpaper().catch(error => {
+      console.error('壁纸系统启动失败:', error);
+    });
   }
 
-  // 更新日期显示 - 优化格式为简洁版本
+  // 更新日期显示 - 靠右侧显示并添加周数
   updateDate() {
     const dateElement = document.getElementById('currentDate');
     const clockElement = document.getElementById('clockTime');
     if (!dateElement) return;
 
     const now = new Date();
-    // 使用简洁格式：10.12 周日
+    // 计算当前是第几周（基于学期开始时间）
+    const weekNumber = this.calculateWeekNumber(now);
+    
+    // 靠右侧显示的格式：第X周 10.12 周一
     const month = now.getMonth() + 1;
     const day = now.getDate();
     const dayName = ClassPaper.Core.getDayName(now);
-    const dateStr = `${month}.${day.toString().padStart(2, '0')} ${dayName}`;
+    const dateStr = `第${weekNumber}周 ${month}.${day.toString().padStart(2, '0')} ${dayName}`;
     dateElement.textContent = dateStr;
+    
+    // 设置靠右对齐样式
+    dateElement.style.textAlign = 'right';
+    dateElement.style.marginRight = '1rem';
     
     // 更新时钟显示 - 机械转轮动画
     if (clockElement) {
@@ -236,9 +246,54 @@ class MainInterface {
     noteElement.textContent = this.core.config.note;
   }
 
-  // 启动壁纸 - 消除重复壁纸逻辑
-  startWallpaper() {
-    this.wallpaperManager.start();
+  // 计算周数 - 基于学期开始时间
+  calculateWeekNumber(date) {
+    const config = this.core.config;
+    if (!config?.lessons?.times?.semester?.start) {
+      // 如果没有配置学期开始时间，使用默认计算（9月1日为第1周）
+      const year = date.getFullYear();
+      const semesterStart = new Date(year, 8, 1); // 9月1日
+      
+      // 如果当前日期在9月1日之前，使用前一年的9月1日
+      if (date < semesterStart) {
+        semesterStart.setFullYear(year - 1);
+      }
+      
+      const weeksDiff = Math.ceil((date - semesterStart) / (7 * 24 * 60 * 60 * 1000));
+      return Math.max(1, weeksDiff);
+    }
+    
+    // 使用配置的学期开始时间
+    const semesterStart = new Date(config.lessons.times.semester.start);
+    const weeksDiff = Math.ceil((date - semesterStart) / (7 * 24 * 60 * 60 * 1000));
+    return Math.max(1, weeksDiff + 1); // +1因为第0周应该显示为第1周
+  }
+
+  // 启动壁纸 - 集成莫奈取色（异步）
+  async startWallpaper() {
+    await this.wallpaperManager.start();
+    
+    // 监听壁纸变化事件，自动提取莫奈配色
+    this.wallpaperManager.core.on('wallpaper:changed', async (wallpaperPath) => {
+      console.log(`[Main] 壁纸已切换，开始莫奈取色: ${wallpaperPath}`);
+      await this.wallpaperManager.extractMonetColors(wallpaperPath);
+    });
+    
+    // 监听配色提取完成事件
+    this.wallpaperManager.core.on('monet:colorsExtracted', (result) => {
+      if (result.success) {
+        console.log(`[Main] 莫奈配色已应用，主色调: ${result.colors.primary}`);
+        
+        // 根据明暗模式调整UI
+        if (result.isDark) {
+          document.body.classList.add('monet-dark-mode');
+          document.body.classList.remove('monet-light-mode');
+        } else {
+          document.body.classList.add('monet-light-mode');
+          document.body.classList.remove('monet-dark-mode');
+        }
+      }
+    });
   }
 
   // 定期更新 - 消除重复定时器
@@ -282,6 +337,10 @@ class MainInterface {
 }
 
 // 初始化主界面
-document.addEventListener('DOMContentLoaded', () => {
-  new MainInterface();
+document.addEventListener('DOMContentLoaded', async () => {
+  const mainInterface = new MainInterface();
+  // 等待壁纸系统初始化完成
+  if (mainInterface.wallpaperManager) {
+    console.log('[Main] 等待壁纸预处理完成...');
+  }
 });

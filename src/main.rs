@@ -7,6 +7,7 @@ use std::{
 };
 
 mod winapi;
+mod monet;
 
 use alcro::{Content, UIBuilder, UI};
 use ctrlc;
@@ -214,29 +215,127 @@ fn create_window(url: &str, window_name: &str, browser_path: &str) -> Result<UI,
     match builder.run() {
         Ok(ui) => {
             let _ = ui.eval(&format!("document.title = '{}';", window_name));
-            // // 自动全屏JS
-            // let fullscreen_js = r#"
-            //     (function() {
-            //         function launchFullscreen(element) {
-            //             if(element.requestFullscreen) {
-            //                 element.requestFullscreen();
-            //             } else if(element.mozRequestFullScreen) {
-            //                 element.mozRequestFullScreen();
-            //             } else if(element.webkitRequestFullscreen) {
-            //                 element.webkitRequestFullscreen();
-            //             } else if(element.msRequestFullscreen) {
-            //                 element.msRequestFullscreen();
-            //             }
-            //         }
-            //         window.addEventListener('load', function() {
-            //             setTimeout(function() {
-            //                 launchFullscreen(document.documentElement);
-            //             }, 300);
-            //         });
-            //     })();
-            // "#;
-            // let _ = ui.eval(fullscreen_js);
-            // 主窗口不绑定任何 Rust 函数到 JS
+            
+            // 绑定 extractMonetColors - 莫奈取色功能（主窗口需要这个API）
+            let _ = ui.bind("extractMonetColors", |args| {
+                if let Some(wallpaper_path) = args.get(0).and_then(|v| v.as_str()) {
+                    log::info!("[ClassPaper] 开始莫奈取色: {}", wallpaper_path);
+                    
+                    // 智能路径解析：处理前端传来的各种路径格式
+                    let full_path = if wallpaper_path.starts_with("http") {
+                        // 网络路径，直接返回错误（不支持网络图片取色）
+                        return Ok(serde_json::json!({
+                            "success": false,
+                            "error": "不支持网络图片取色，请使用本地图片",
+                            "colors": {
+                                "primary": "#667eea",
+                                "primaryVariant": "#764ba2",
+                                "secondary": "#f093fb",
+                                "secondaryVariant": "#f5576c",
+                                "background": "#ffffff",
+                                "surface": "#fafafa",
+                                "error": "#f44336",
+                                "onPrimary": "#ffffff",
+                                "onSecondary": "#ffffff",
+                                "onBackground": "#1a1a1a",
+                                "onSurface": "#1a1a1a",
+                                "onError": "#ffffff",
+                            },
+                            "css": "",
+                            "isDark": false,
+                        }));
+                    } else if std::path::Path::new(wallpaper_path).is_absolute() {
+                        // 已经是绝对路径，直接使用
+                        wallpaper_path.to_string()
+                    } else {
+                         // 相对路径：尝试相对于程序运行目录和res目录
+                         let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                         let wallpaper_path_obj = std::path::Path::new(wallpaper_path);
+                         let try_paths = vec![
+                             current_dir.join(wallpaper_path),
+                             current_dir.join("res").join(wallpaper_path),
+                             current_dir.join("res/wallpaper").join(wallpaper_path_obj.file_name().unwrap_or_default()),
+                         ];
+                         
+                         let mut found_path = None;
+                         for path in try_paths {
+                             if path.exists() {
+                                 found_path = Some(path);
+                                 break;
+                             }
+                         }
+                         
+                         match found_path {
+                             Some(path) => path.to_string_lossy().to_string(),
+                             None => {
+                                 // 如果都找不到，尝试原路径但记录警告
+                                 log::warn!("[ClassPaper] 未找到壁纸文件，尝试原路径: {}", wallpaper_path);
+                                 wallpaper_path.to_string()
+                             }
+                         }
+                     };
+                    
+                    log::info!("[ClassPaper] 解析后的完整路径: {}", full_path);
+                    
+                    match monet::MonetColorExtractor::from_file(&full_path) {
+                        Ok(extractor) => {
+                            let scheme = extractor.get_color_scheme();
+                            let css_variables = extractor.generate_css_variables();
+                            
+                            log::info!("[ClassPaper] 莫奈取色成功，主色调: {}", scheme.primary);
+                            
+                            // 返回配色方案和CSS变量
+                            Ok(serde_json::json!({
+                                "success": true,
+                                "colors": {
+                                    "primary": scheme.primary,
+                                    "primaryVariant": scheme.primary_variant,
+                                    "secondary": scheme.secondary,
+                                    "secondaryVariant": scheme.secondary_variant,
+                                    "background": scheme.background,
+                                    "surface": scheme.surface,
+                                    "error": scheme.error,
+                                    "onPrimary": scheme.on_primary,
+                                    "onSecondary": scheme.on_secondary,
+                                    "onBackground": scheme.on_background,
+                                    "onSurface": scheme.on_surface,
+                                    "onError": scheme.on_error,
+                                },
+                                "css": css_variables,
+                                "isDark": monet::MonetColorExtractor::is_dark_color_from_hex(&scheme.primary),
+                            }))
+                        }
+                        Err(e) => {
+                            log::error!("[ClassPaper] 莫奈取色失败: {}", e);
+                            winapi::show_error_notification(&format!("莫奈取色失败\n\n无法从壁纸提取颜色: {}\n\n错误信息: {}\n\n可能原因：\n• 图片文件损坏或格式不支持\n• 文件路径错误或权限不足\n• 图片尺寸过小或颜色信息不足\n\n将使用默认配色方案。", wallpaper_path, e));
+                            
+                            Ok(serde_json::json!({
+                                "success": false,
+                                "error": e,
+                                "colors": {
+                                    "primary": "#667eea",
+                                    "primaryVariant": "#764ba2",
+                                    "secondary": "#f093fb",
+                                    "secondaryVariant": "#f5576c",
+                                    "background": "#ffffff",
+                                    "surface": "#fafafa",
+                                    "error": "#f44336",
+                                    "onPrimary": "#ffffff",
+                                    "onSecondary": "#ffffff",
+                                    "onBackground": "#1a1a1a",
+                                    "onSurface": "#1a1a1a",
+                                    "onError": "#ffffff",
+                                },
+                                "css": "",
+                                "isDark": false,
+                            }))
+                        }
+                    }
+                } else {
+                    Err("参数错误：需要提供壁纸路径".into())
+                }
+            });
+            
             Ok(ui)
         }
         Err(e) => {
@@ -424,6 +523,69 @@ fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
             }
         } else {
             Err("参数错误".into())
+        }
+    });
+    // 绑定 extractMonetColors - 莫奈取色功能
+    let _ = settings_ui.bind("extractMonetColors", |args| {
+        if let Some(wallpaper_path) = args.get(0).and_then(|v| v.as_str()) {
+            log::info!("[ClassPaper] 开始莫奈取色: {}", wallpaper_path);
+            
+            match monet::MonetColorExtractor::from_file(wallpaper_path) {
+                Ok(extractor) => {
+                    let scheme = extractor.get_color_scheme();
+                    let css_variables = extractor.generate_css_variables();
+                    
+                    log::info!("[ClassPaper] 莫奈取色成功，主色调: {}", scheme.primary);
+                    
+                    // 返回配色方案和CSS变量
+                    Ok(serde_json::json!({
+                        "success": true,
+                        "colors": {
+                            "primary": scheme.primary,
+                            "primaryVariant": scheme.primary_variant,
+                            "secondary": scheme.secondary,
+                            "secondaryVariant": scheme.secondary_variant,
+                            "background": scheme.background,
+                            "surface": scheme.surface,
+                            "error": scheme.error,
+                            "onPrimary": scheme.on_primary,
+                            "onSecondary": scheme.on_secondary,
+                            "onBackground": scheme.on_background,
+                            "onSurface": scheme.on_surface,
+                            "onError": scheme.on_error,
+                        },
+                        "css": css_variables,
+                        "isDark": monet::MonetColorExtractor::is_dark_color_from_hex(&scheme.primary),
+                    }))
+                }
+                Err(e) => {
+                    log::error!("[ClassPaper] 莫奈取色失败: {}", e);
+                    winapi::show_error_notification(&format!("莫奈取色失败\n\n无法从壁纸提取颜色: {}\n\n错误信息: {}\n\n可能原因：\n• 图片文件损坏或格式不支持\n• 文件路径错误或权限不足\n• 图片尺寸过小或颜色信息不足\n\n将使用默认配色方案。", wallpaper_path, e));
+                    
+                    Ok(serde_json::json!({
+                        "success": false,
+                        "error": e,
+                        "colors": {
+                            "primary": "#667eea",
+                            "primaryVariant": "#764ba2",
+                            "secondary": "#f093fb",
+                            "secondaryVariant": "#f5576c",
+                            "background": "#ffffff",
+                            "surface": "#fafafa",
+                            "error": "#f44336",
+                            "onPrimary": "#ffffff",
+                            "onSecondary": "#ffffff",
+                            "onBackground": "#1a1a1a",
+                            "onSurface": "#1a1a1a",
+                            "onError": "#ffffff",
+                        },
+                        "css": "",
+                        "isDark": false,
+                    }))
+                }
+            }
+        } else {
+            Err("参数错误：需要提供壁纸路径".into())
         }
     });
     // 设置窗口标题

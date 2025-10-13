@@ -6,7 +6,7 @@
   --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
   
-  /* 玻璃拟态效果 - 消除硬编码透明度 */
+  /* 玻璃拟态效果 - 支持莫奈配色，消除硬编码透明度 */
   --glass-bg-rgb: 255, 255, 255;
   --glass-bg: rgba(var(--glass-bg-rgb), var(--glass-opacity, 0.1));
   --glass-border: rgba(var(--glass-bg-rgb), var(--glass-border-opacity, 0.2));
@@ -15,6 +15,7 @@
   --glass-opacity: 0.1;
   --glass-border-opacity: 0.2;
   --blur-strength: 20px;
+  transition: background 0.3s ease, border-color 0.3s ease;
   
   /* 文字色彩 */
   --text-primary: #1a1a1a;
@@ -39,6 +40,16 @@
   --transition-fast: 0.2s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
+  
+  /* 字体系统 */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Courier New', monospace;
+  
+  /* 颜色RGB值 - 用于玻璃拟态 */
+  --primary-rgb: 102, 126, 234;
+  --secondary-rgb: 240, 147, 251;
+  --success-rgb: 79, 172, 254;
+  --warning-rgb: 245, 158, 11;
 }
 
 /* 深色主题 - 消除硬编码颜色反转 */
@@ -60,9 +71,27 @@
 
 /* 统一字体系统 */
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.6;
   color: var(--text-primary);
+}
+
+/* 基础重置 - 消除所有浏览器差异 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 统一字体系统 */
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-gradient);
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  color: var(--text-primary);
+  line-height: 1.6;
 }
 
 /* Apple/Fluent UI 按钮系统 - 消除重复按钮样式，增强玻璃拟态 */
@@ -209,6 +238,158 @@ body {
   border: none;
 }
 
+/* 课程表特定组件 - Apple/Fluent风格 */
+.info-card {
+  composes: glass-card wallpaper-integrated;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.info-card h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  position: relative;
+}
+
+.info-card h3::before {
+  content: '';
+  position: absolute;
+  bottom: -0.3rem;
+  left: 0;
+  width: 30px;
+  height: 2px;
+  background: var(--primary-gradient);
+  border-radius: 2px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 12px;
+  background: rgba(var(--glass-bg-rgb), 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(var(--glass-bg-rgb), 0.2);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+  background-size: 200% 100%;
+  border-radius: 7px;
+  transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  animation: progress-gradient 3s ease infinite;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: progress-shine 2s infinite;
+}
+
+@keyframes progress-shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes progress-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.event-item {
+  composes: glass-card wallpaper-integrated;
+  padding: 1rem 1.2rem;
+  margin-bottom: 0.8rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(var(--warning-rgb), 0.12), rgba(var(--warning-rgb), 0.03));
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  box-shadow: 0 3px 15px rgba(var(--warning-rgb), 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(var(--warning-rgb), 0.15);
+}
+
+.event-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 25px rgba(var(--warning-rgb), 0.2);
+}
+
+.event-item:last-child {
+  margin-bottom: 0;
+}
+
+.countdown-container {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.countdown-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--warning-color);
+  line-height: 1.2;
+  text-shadow: 0 2px 4px rgba(var(--warning-rgb), 0.2);
+}
+
+.countdown-unit {
+  font-size: 1rem;
+  color: var(--warning-color);
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.event-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  opacity: 0.9;
+  margin-top: 0.3rem;
+}
+
+.note {
+  composes: glass-card wallpaper-integrated;
+  text-align: center;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-left: 4px solid var(--primary-color);
+  background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.15), rgba(var(--primary-rgb), 0.05));
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 20px rgba(var(--primary-rgb), 0.15);
+}
+
 /* 布局系统 - 消除重复布局代码 */
 .container-right {
   display: flex;
@@ -254,6 +435,210 @@ body {
   margin-top: 0.25rem;
 }
 
+/* 全局样式 - 从index.html提取 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-gradient);
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 莫奈配色系统 - 动态主题支持 */
+body.monet-light-mode {
+  --glass-bg-rgb: 255, 255, 255;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666;
+  --text-light: #999;
+}
+
+body.monet-dark-mode {
+  --glass-bg-rgb: 18, 18, 18;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --text-light: #888;
+}
+
+/* 莫奈配色动态变量 */
+:root {
+  --monet-primary: #667eea;
+  --monet-primary-variant: #764ba2;
+  --monet-secondary: #f093fb;
+  --monet-secondary-variant: #f5576c;
+  --monet-background: #ffffff;
+  --monet-surface: #fafafa;
+  --monet-error: #f44336;
+  --monet-on-primary: #ffffff;
+  --monet-on-secondary: #ffffff;
+  --monet-on-background: #1a1a1a;
+  --monet-on-surface: #1a1a1a;
+  --monet-on-error: #ffffff;
+}
+
+/* 壁纸背景系统 */
+.wallpaper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1;
+  transition: background-image 1s ease-in-out;
+}
+
+.wallpaper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  backdrop-filter: blur(2px);
+}
+
+/* 主容器布局 */
+.container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 100vh;
+  padding: 0.5rem;
+}
+
+/* 翻页时钟动画 - 严格固定宽度版本 */
+.flip-digit {
+  display: inline-block;
+  position: relative;
+  width: 0.6em;
+  height: 60px;
+  overflow: hidden;
+  vertical-align: middle;
+  backface-visibility: hidden;
+  font-size: 48px;
+  line-height: 60px;
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+.flip-digit .digit-old,
+.flip-digit .digit-new {
+  position: absolute;
+  left: 0;
+  width: 0.6em;
+  height: 60px;
+  font-size: 48px;
+  line-height: 60px;
+  text-align: center;
+  backface-visibility: hidden;
+  font-family: var(--font-mono);
+}
+
+.flip-digit .digit-old {
+  transform: translateY(0);
+  animation: slideDownOld 0.6s ease-in-out forwards;
+  font-weight: 600; /* 确保字体粗细一致 */
+}
+
+.flip-digit .digit-new {
+  transform: translateY(-60px);
+  animation: slideInNew 0.6s ease-in-out forwards;
+  font-weight: 600; /* 确保字体粗细一致 */
+}
+
+@keyframes slideDownOld {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(60px);
+    opacity: 0;
+  }
+}
+
+@keyframes slideInNew {
+  0% {
+    transform: translateY(-60px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 主面板布局 - 从index.html提取 */
+.main-panel {
+  composes: glass-card wallpaper-integrated;
+  padding: 1rem;
+  margin-right: 1rem;
+  max-height: 95vh;
+  width: 50%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.main-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.main-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* 标题样式 - Apple风格 */
+.title {
+  font-size: 3rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+  line-height: 1.4;
+  vertical-align: baseline;
+  width: 9ch; /* 固定宽度：HH:MM:SS 共8字符 + 2个冒号 = 9ch */
+}
+
+.subtitle {
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  font-weight: 400;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.2ch;
+  opacity: 0.9;
+  text-align: center;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
   .container-right {
@@ -266,5 +651,10 @@ body {
   
   .title {
     font-size: 1.5rem;
+  }
+  
+  .main-panel {
+    width: 90%;
+    margin: 0 auto;
   }
 }
