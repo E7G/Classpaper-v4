@@ -225,6 +225,21 @@ class WallpaperManager {
     
     this.cacheMisses++; // 统计缓存未命中
 
+    // 检查后端API是否可用
+    if (typeof window.extractMonetColors !== 'function') {
+      console.warn('[Monet] 后端API未就绪，使用默认配色');
+      const defaultResult = {
+        success: false,
+        error: '后端API未就绪',
+        colors: this.getDefaultMonetColors(),
+        css: '',
+        isDark: false
+      };
+      this.monetColors = defaultResult.colors;
+      this.core.emit('monet:colorsExtracted', defaultResult);
+      return defaultResult;
+    }
+
     // 缓存未命中，立即提取
     try {
       console.log(`[Monet] 缓存未命中，开始取色: ${wallpaperPath}`);
@@ -390,6 +405,12 @@ class WallpaperManager {
 
   // 单张壁纸预加载（私有方法）
   async preloadSingleWallpaper(wallpaper) {
+    // 检查后端API是否可用
+    if (typeof window.extractMonetColors !== 'function') {
+      console.warn(`[Preload] 后端API未就绪，跳过预加载: ${wallpaper}`);
+      return;
+    }
+
     try {
       console.log(`[Preload] 智能预加载: ${wallpaper}`);
       const result = await window.extractMonetColors(wallpaper);

@@ -269,31 +269,54 @@ class MainInterface {
     return Math.max(1, weeksDiff + 1); // +1因为第0周应该显示为第1周
   }
 
+  // 等待后端API准备就绪
+  async waitForBackendAPI() {
+    const maxRetries = 50; // 最多等待5秒
+    const retryDelay = 100; // 每次重试间隔100ms
+    
+    for (let i = 0; i < maxRetries; i++) {
+      if (typeof window.extractMonetColors === 'function') {
+        console.log('[Main] 后端API已就绪');
+        return;
+      }
+      
+      console.log(`[Main] 等待后端API... (${i + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
+    
+    console.warn('[Main] 后端API超时，莫奈取色功能可能不可用');
+  }
+
   // 启动壁纸 - 集成莫奈取色（异步）
   async startWallpaper() {
-    await this.wallpaperManager.start();
-    
-    // 监听壁纸变化事件，自动提取莫奈配色
-    this.wallpaperManager.core.on('wallpaper:changed', async (wallpaperPath) => {
-      console.log(`[Main] 壁纸已切换，开始莫奈取色: ${wallpaperPath}`);
-      await this.wallpaperManager.extractMonetColors(wallpaperPath);
-    });
-    
-    // 监听配色提取完成事件
-    this.wallpaperManager.core.on('monet:colorsExtracted', (result) => {
-      if (result.success) {
-        console.log(`[Main] 莫奈配色已应用，主色调: ${result.colors.primary}`);
-        
-        // 根据明暗模式调整UI
-        if (result.isDark) {
-          document.body.classList.add('monet-dark-mode');
-          document.body.classList.remove('monet-light-mode');
-        } else {
-          document.body.classList.add('monet-light-mode');
-          document.body.classList.remove('monet-dark-mode');
+    try {
+      await this.wallpaperManager.start();
+      console.log('[Main] 壁纸管理器启动成功');
+      
+      // 监听壁纸变化事件，自动提取莫奈配色
+      this.wallpaperManager.core.on('wallpaper:changed', async (wallpaperPath) => {
+        console.log(`[Main] 壁纸已切换，开始莫奈取色: ${wallpaperPath}`);
+        await this.wallpaperManager.extractMonetColors(wallpaperPath);
+      });
+      
+      // 监听配色提取完成事件
+      this.wallpaperManager.core.on('monet:colorsExtracted', (result) => {
+        if (result.success) {
+          console.log(`[Main] 莫奈配色已应用，主色调: ${result.colors.primary}`);
+          
+          // 根据明暗模式调整UI
+          if (result.isDark) {
+            document.body.classList.add('monet-dark-mode');
+            document.body.classList.remove('monet-light-mode');
+          } else {
+            document.body.classList.add('monet-light-mode');
+            document.body.classList.remove('monet-dark-mode');
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('[Main] 壁纸系统初始化失败:', error);
+    }
   }
 
   // 定期更新 - 消除重复定时器
@@ -339,8 +362,7 @@ class MainInterface {
 // 初始化主界面
 document.addEventListener('DOMContentLoaded', async () => {
   const mainInterface = new MainInterface();
-  // 等待壁纸系统初始化完成
-  if (mainInterface.wallpaperManager) {
-    console.log('[Main] 等待壁纸预处理完成...');
-  }
+  // 等待后端API准备就绪后再启动壁纸系统
+  await mainInterface.waitForBackendAPI();
+  console.log('[Main] 后端API就绪，开始初始化壁纸系统...');
 });

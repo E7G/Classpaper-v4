@@ -451,6 +451,7 @@ impl MonetColorExtractor {
         // 1. 色相偏移到45-60度（黄色-橙色范围）
         // 2. 保持高饱和度确保警告效果
         // 3. 调整亮度确保在不同主题下的可见性
+        // 4. 重要事件倒计时需要更亮更显眼
         
         let target_hue = 50.0; // 黄色-橙色之间的最佳警告色
         let hue_diff = (target_hue - primary_hsl.hue.into_degrees()).abs();
@@ -462,11 +463,11 @@ impl MonetColorExtractor {
             target_hue
         };
         
-        let warning_saturation = 0.8; // 高饱和度确保醒目
+        let warning_saturation = 0.9; // 增加饱和度到0.9确保更醒目
         let warning_lightness = if Self::is_dark_color(primary) {
-            0.75 // 深色主题用较亮的警告色
+            0.85 // 深色主题用更亮的警告色
         } else {
-            0.65 // 浅色主题用中等亮度的警告色
+            0.75 // 浅色主题用更亮的警告色
         };
         
         let warning = Hsl::new(final_hue, warning_saturation, warning_lightness);
