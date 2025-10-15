@@ -106,21 +106,7 @@ fn normalize_url(url: &str) -> String {
             &abs_path_str
         };
         // Windows下去除多余的斜杠
-        #[cfg(windows)]
-        let abs_path_str = {
-            let mut s = abs_path_str.replace("\\", "/");
-            // 去除 "/./" 片段
-            while let Some(idx) = s.find("/./") {
-                s.replace_range(idx..idx + 3, "/");
-            }
-            // 去除 "D:/" 前的多余斜杠
-            if s.starts_with("/") && s.chars().nth(2) == Some(':') {
-                s = s[1..].to_string();
-            }
-            s
-        };
-        #[cfg(not(windows))]
-        let abs_path_str = abs_path_str.replace("\\", "/");
+        let abs_path_str = winapi::normalize_path_for_windows(abs_path_str);
         let encoded = encode_chinese_characters(&abs_path_str);
         let file_url = format!("file:///{}", encoded);
         file_url
@@ -180,7 +166,118 @@ fn parse_config() -> AppConfig {
     }
 }
 
-fn create_window(url: &str, window_name: &str, browser_path: &str) -> Result<UI, Box<dyn std::error::Error>> {
+/// 公共的莫奈取色函数 - 消除重复代码
+/// 
+/// 统一处理莫奈取色逻辑，包括路径解析、错误处理和默认配色方案
+fn extract_monet_colors_common(wallpaper_path: &str) -> serde_json::Value {
+    log::info!("[ClassPaper] 开始莫奈取色: {}", wallpaper_path);
+    
+    // 智能路径解析：处理前端传来的各种路径格式
+    let full_path = if wallpaper_path.starts_with("http") {
+        // 网络路径，直接返回错误（不支持网络图片取色）
+        log::warn!("[ClassPaper] 不支持网络图片取色: {}", wallpaper_path);
+        return serde_json::json!({
+            "success": false,
+            "error": "不支持网络图片取色，请使用本地图片",
+            "colors": get_default_color_scheme(),
+            "css": "",
+            "isDark": false,
+        });
+    } else if std::path::Path::new(wallpaper_path).is_absolute() {
+        // 已经是绝对路径，直接使用
+        wallpaper_path.to_string()
+    } else {
+        // 相对路径：尝试相对于程序运行目录和res目录
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let wallpaper_path_obj = std::path::Path::new(wallpaper_path);
+        let try_paths = vec![
+            current_dir.join(wallpaper_path),
+            current_dir.join("res").join(wallpaper_path),
+            current_dir.join("res/wallpaper").join(wallpaper_path_obj.file_name().unwrap_or_default()),
+        ];
+        
+        let mut found_path = None;
+        for path in try_paths {
+            if path.exists() {
+                found_path = Some(path);
+                break;
+            }
+        }
+        
+        match found_path {
+            Some(path) => path.to_string_lossy().to_string(),
+            None => {
+                // 如果都找不到，尝试原路径但记录警告
+                log::warn!("[ClassPaper] 未找到壁纸文件，尝试原路径: {}", wallpaper_path);
+                wallpaper_path.to_string()
+            }
+        }
+    };
+    
+    log::info!("[ClassPaper] 解析后的完整路径: {}", full_path);
+    
+    match monet::MonetColorExtractor::from_file(&full_path) {
+        Ok(extractor) => {
+            let scheme = extractor.get_color_scheme();
+            let css_variables = extractor.generate_css_variables();
+            
+            log::info!("[ClassPaper] 莫奈取色成功，主色调: {}", scheme.primary);
+            
+            // 返回配色方案和CSS变量
+            serde_json::json!({
+                "success": true,
+                "colors": {
+                    "primary": scheme.primary,
+                    "primaryVariant": scheme.primary_variant,
+                    "secondary": scheme.secondary,
+                    "secondaryVariant": scheme.secondary_variant,
+                    "background": scheme.background,
+                    "surface": scheme.surface,
+                    "error": scheme.error,
+                    "onPrimary": scheme.on_primary,
+                    "onSecondary": scheme.on_secondary,
+                    "onBackground": scheme.on_background,
+                    "onSurface": scheme.on_surface,
+                    "onError": scheme.on_error,
+                },
+                "css": css_variables,
+                "isDark": monet::MonetColorExtractor::is_dark_color_from_hex(&scheme.primary),
+            })
+        }
+        Err(e) => {
+            log::error!("[ClassPaper] 莫奈取色失败: {}", e);
+            winapi::show_error_notification(&format!("莫奈取色失败\n\n无法从壁纸提取颜色: {}\n\n错误信息: {}\n\n可能原因：\n• 图片文件损坏或格式不支持\n• 文件路径错误或权限不足\n• 图片尺寸过小或颜色信息不足\n\n将使用默认配色方案。", wallpaper_path, e));
+            
+            serde_json::json!({
+                "success": false,
+                "error": e,
+                "colors": get_default_color_scheme(),
+                "css": "",
+                "isDark": false,
+            })
+        }
+    }
+}
+
+/// 获取默认配色方案 - 统一错误处理
+fn get_default_color_scheme() -> serde_json::Value {
+    serde_json::json!({
+        "primary": "#667eea",
+        "primaryVariant": "#764ba2",
+        "secondary": "#f093fb",
+        "secondaryVariant": "#f5576c",
+        "background": "#ffffff",
+        "surface": "#fafafa",
+        "error": "#f44336",
+        "onPrimary": "#ffffff",
+        "onSecondary": "#ffffff",
+        "onBackground": "#1a1a1a",
+        "onSurface": "#1a1a1a",
+        "onError": "#ffffff",
+    })
+}
+
+fn create_window(url: &str, window_name: &str, browser_path: &str, kiosk_mode: bool) -> Result<UI, Box<dyn std::error::Error>> {
     let mut builder = UIBuilder::new();
     builder.content(Content::Url(url));
     if !browser_path.is_empty() {
@@ -188,10 +285,15 @@ fn create_window(url: &str, window_name: &str, browser_path: &str) -> Result<UI,
     }
     // 根据 URL 类型智能决定是否禁用缓存
     let mut chrome_args = vec![
-        "--kiosk",
         "--autoplay-policy=no-user-gesture-required",
         // 其他参数
     ];
+    
+    // 根据kiosk_mode参数决定是否添加kiosk参数
+    if kiosk_mode {
+        chrome_args.push("--kiosk");
+    }
+    
     if !url.starts_with("http://") && !url.starts_with("https://") {
         // 本地文件禁用缓存
         chrome_args.extend_from_slice(&[
@@ -217,120 +319,20 @@ fn create_window(url: &str, window_name: &str, browser_path: &str) -> Result<UI,
             let _ = ui.eval(&format!("document.title = '{}';", window_name));
             
             // 绑定 extractMonetColors - 莫奈取色功能（主窗口需要这个API）
+            // 绑定完成后通知前端API已就绪
+            let _ = ui.eval("window.dispatchEvent(new CustomEvent('backendAPIReady'));");
             let _ = ui.bind("extractMonetColors", |args| {
                 if let Some(wallpaper_path) = args.get(0).and_then(|v| v.as_str()) {
                     log::info!("[ClassPaper] 开始莫奈取色: {}", wallpaper_path);
+                    let result = extract_monet_colors_common(wallpaper_path);
                     
-                    // 智能路径解析：处理前端传来的各种路径格式
-                    let full_path = if wallpaper_path.starts_with("http") {
-                        // 网络路径，直接返回错误（不支持网络图片取色）
-                        return Ok(serde_json::json!({
-                            "success": false,
-                            "error": "不支持网络图片取色，请使用本地图片",
-                            "colors": {
-                                "primary": "#667eea",
-                                "primaryVariant": "#764ba2",
-                                "secondary": "#f093fb",
-                                "secondaryVariant": "#f5576c",
-                                "background": "#ffffff",
-                                "surface": "#fafafa",
-                                "error": "#f44336",
-                                "onPrimary": "#ffffff",
-                                "onSecondary": "#ffffff",
-                                "onBackground": "#1a1a1a",
-                                "onSurface": "#1a1a1a",
-                                "onError": "#ffffff",
-                            },
-                            "css": "",
-                            "isDark": false,
-                        }));
-                    } else if std::path::Path::new(wallpaper_path).is_absolute() {
-                        // 已经是绝对路径，直接使用
-                        wallpaper_path.to_string()
+                    if result["success"].as_bool().unwrap_or(false) {
+                        log::info!("[ClassPaper] 莫奈取色成功，主色调: {}", result["colors"]["primary"]);
                     } else {
-                         // 相对路径：尝试相对于程序运行目录和res目录
-                         let current_dir = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-                         let wallpaper_path_obj = std::path::Path::new(wallpaper_path);
-                         let try_paths = vec![
-                             current_dir.join(wallpaper_path),
-                             current_dir.join("res").join(wallpaper_path),
-                             current_dir.join("res/wallpaper").join(wallpaper_path_obj.file_name().unwrap_or_default()),
-                         ];
-                         
-                         let mut found_path = None;
-                         for path in try_paths {
-                             if path.exists() {
-                                 found_path = Some(path);
-                                 break;
-                             }
-                         }
-                         
-                         match found_path {
-                             Some(path) => path.to_string_lossy().to_string(),
-                             None => {
-                                 // 如果都找不到，尝试原路径但记录警告
-                                 log::warn!("[ClassPaper] 未找到壁纸文件，尝试原路径: {}", wallpaper_path);
-                                 wallpaper_path.to_string()
-                             }
-                         }
-                     };
-                    
-                    log::info!("[ClassPaper] 解析后的完整路径: {}", full_path);
-                    
-                    match monet::MonetColorExtractor::from_file(&full_path) {
-                        Ok(extractor) => {
-                            let scheme = extractor.get_color_scheme();
-                            let css_variables = extractor.generate_css_variables();
-                            
-                            log::info!("[ClassPaper] 莫奈取色成功，主色调: {}", scheme.primary);
-                            
-                            // 返回配色方案和CSS变量
-                            Ok(serde_json::json!({
-                                "success": true,
-                                "colors": {
-                                    "primary": scheme.primary,
-                                    "primaryVariant": scheme.primary_variant,
-                                    "secondary": scheme.secondary,
-                                    "secondaryVariant": scheme.secondary_variant,
-                                    "background": scheme.background,
-                                    "surface": scheme.surface,
-                                    "error": scheme.error,
-                                    "onPrimary": scheme.on_primary,
-                                    "onSecondary": scheme.on_secondary,
-                                    "onBackground": scheme.on_background,
-                                    "onSurface": scheme.on_surface,
-                                    "onError": scheme.on_error,
-                                },
-                                "css": css_variables,
-                                "isDark": monet::MonetColorExtractor::is_dark_color_from_hex(&scheme.primary),
-                            }))
-                        }
-                        Err(e) => {
-                            log::error!("[ClassPaper] 莫奈取色失败: {}", e);
-                            winapi::show_error_notification(&format!("莫奈取色失败\n\n无法从壁纸提取颜色: {}\n\n错误信息: {}\n\n可能原因：\n• 图片文件损坏或格式不支持\n• 文件路径错误或权限不足\n• 图片尺寸过小或颜色信息不足\n\n将使用默认配色方案。", wallpaper_path, e));
-                            
-                            Ok(serde_json::json!({
-                                "success": false,
-                                "error": e,
-                                "colors": {
-                                    "primary": "#667eea",
-                                    "primaryVariant": "#764ba2",
-                                    "secondary": "#f093fb",
-                                    "secondaryVariant": "#f5576c",
-                                    "background": "#ffffff",
-                                    "surface": "#fafafa",
-                                    "error": "#f44336",
-                                    "onPrimary": "#ffffff",
-                                    "onSecondary": "#ffffff",
-                                    "onBackground": "#1a1a1a",
-                                    "onSurface": "#1a1a1a",
-                                    "onError": "#ffffff",
-                                },
-                                "css": "",
-                                "isDark": false,
-                            }))
-                        }
+                        log::error!("[ClassPaper] 莫奈取色失败: {}", result["error"].as_str().unwrap_or("未知错误"));
                     }
+                    
+                    Ok(result)
                 } else {
                     Err("参数错误：需要提供壁纸路径".into())
                 }
@@ -529,61 +531,15 @@ fn open_settings_window(app_state: Arc<Mutex<AppState>>) {
     let _ = settings_ui.bind("extractMonetColors", |args| {
         if let Some(wallpaper_path) = args.get(0).and_then(|v| v.as_str()) {
             log::info!("[ClassPaper] 开始莫奈取色: {}", wallpaper_path);
+            let result = extract_monet_colors_common(wallpaper_path);
             
-            match monet::MonetColorExtractor::from_file(wallpaper_path) {
-                Ok(extractor) => {
-                    let scheme = extractor.get_color_scheme();
-                    let css_variables = extractor.generate_css_variables();
-                    
-                    log::info!("[ClassPaper] 莫奈取色成功，主色调: {}", scheme.primary);
-                    
-                    // 返回配色方案和CSS变量
-                    Ok(serde_json::json!({
-                        "success": true,
-                        "colors": {
-                            "primary": scheme.primary,
-                            "primaryVariant": scheme.primary_variant,
-                            "secondary": scheme.secondary,
-                            "secondaryVariant": scheme.secondary_variant,
-                            "background": scheme.background,
-                            "surface": scheme.surface,
-                            "error": scheme.error,
-                            "onPrimary": scheme.on_primary,
-                            "onSecondary": scheme.on_secondary,
-                            "onBackground": scheme.on_background,
-                            "onSurface": scheme.on_surface,
-                            "onError": scheme.on_error,
-                        },
-                        "css": css_variables,
-                        "isDark": monet::MonetColorExtractor::is_dark_color_from_hex(&scheme.primary),
-                    }))
-                }
-                Err(e) => {
-                    log::error!("[ClassPaper] 莫奈取色失败: {}", e);
-                    winapi::show_error_notification(&format!("莫奈取色失败\n\n无法从壁纸提取颜色: {}\n\n错误信息: {}\n\n可能原因：\n• 图片文件损坏或格式不支持\n• 文件路径错误或权限不足\n• 图片尺寸过小或颜色信息不足\n\n将使用默认配色方案。", wallpaper_path, e));
-                    
-                    Ok(serde_json::json!({
-                        "success": false,
-                        "error": e,
-                        "colors": {
-                            "primary": "#667eea",
-                            "primaryVariant": "#764ba2",
-                            "secondary": "#f093fb",
-                            "secondaryVariant": "#f5576c",
-                            "background": "#ffffff",
-                            "surface": "#fafafa",
-                            "error": "#f44336",
-                            "onPrimary": "#ffffff",
-                            "onSecondary": "#ffffff",
-                            "onBackground": "#1a1a1a",
-                            "onSurface": "#1a1a1a",
-                            "onError": "#ffffff",
-                        },
-                        "css": "",
-                        "isDark": false,
-                    }))
-                }
+            if result["success"].as_bool().unwrap_or(false) {
+                log::info!("[ClassPaper] 莫奈取色成功，主色调: {}", result["colors"]["primary"]);
+            } else {
+                log::error!("[ClassPaper] 莫奈取色失败: {}", result["error"].as_str().unwrap_or("未知错误"));
             }
+            
+            Ok(result)
         } else {
             Err("参数错误：需要提供壁纸路径".into())
         }
@@ -610,81 +566,7 @@ fn close_all_and_exit(app_state: &Arc<Mutex<AppState>>) -> ! {
     std::process::exit(0);
 }
 
-/// 检测Windows版本并选择合适的桌面穿透方案
-fn get_windows_version() -> (u32, u32, u32) {
-    // 由于GetVersionExW在新版本Windows中可能被弃用，我们使用更简单的方法
-    // 通过检查系统特性来判断Windows版本
-    use std::process::Command;
-    
-    // 尝试通过wmic命令获取版本信息
-    if let Ok(output) = Command::new("wmic")
-        .args(&["os", "get", "Version", "/value"])
-        .output()
-    {
-        if let Ok(version_str) = String::from_utf8(output.stdout) {
-            for line in version_str.lines() {
-                if line.starts_with("Version=") {
-                    let version = line.replace("Version=", "");
-                    let parts: Vec<&str> = version.split('.').collect();
-                    if parts.len() >= 3 {
-                        let major = parts[0].parse().unwrap_or(10);
-                        let minor = parts[1].parse().unwrap_or(0);
-                        let build = parts[2].parse().unwrap_or(19041);
-                        return (major, minor, build);
-                    }
-                }
-            }
-        }
-    }
-    
-    // 如果获取失败，默认返回Windows 10的版本号
-    log::warn!("[ClassPaper] 无法获取Windows版本，使用默认值");
-    (10, 0, 19041)
-}
 
-/// 判断是否应该使用新版本的桌面穿透方案
-fn should_use_new_wallpaper_method() -> bool {
-    let (major, minor, build) = get_windows_version();
-    log::info!("[ClassPaper] 检测到Windows版本: {}.{}.{}", major, minor, build);
-    
-    // Windows 10 (major = 10) 且 build >= 19041 (20H1) 或 Windows 11 (major >= 10)
-    // 使用新方案适配Win10 20H1+和Win11的桌面穿透
-    if major >= 10 && build >= 19041 {
-        log::info!("[ClassPaper] 使用新版本桌面穿透方案 (Win10 20H1+/Win11)");
-        true
-    } else {
-        log::info!("[ClassPaper] 使用旧版本桌面穿透方案 (Win10早期版本/Win7)");
-        false
-    }
-}
-
-/// 统一的桌面穿透设置函数，根据Windows版本自动选择方案
-fn setup_desktop_penetration(window_name: &str) {
-    log::info!("[ClassPaper] 开始设置桌面穿透: {}", window_name);
-    
-    let success = if should_use_new_wallpaper_method() {
-        // 尝试新版本方案
-        log::debug!("[ClassPaper] 尝试新版本桌面穿透方案");
-        let result = winapi::setup_wallpaper_new(window_name);
-        if !result {
-            log::warn!("[ClassPaper] 新版本方案失败，回退到旧版本方案");
-            winapi::setup_wallpaper(window_name)
-        } else {
-            result
-        }
-    } else {
-        // 使用旧版本方案
-        log::debug!("[ClassPaper] 使用旧版本桌面穿透方案");
-        winapi::setup_wallpaper(window_name)
-    };
-    
-    if success {
-        log::info!("[ClassPaper] 桌面穿透设置成功");
-    } else {
-        log::error!("[ClassPaper] 桌面穿透设置失败");
-        winapi::show_error_notification("桌面穿透设置失败\n\n可能原因：\n• 系统权限不足\n• 桌面窗口被其他程序占用\n• Windows版本兼容性问题\n\n请尝试以管理员身份运行程序，或查看app.log获取详细信息。");
-    }
-}
 
 fn main() -> std::io::Result<()> {
     // 日志初始化增强（美化格式/本地时间/分级/彩色/线程/文件/行号）
@@ -698,10 +580,7 @@ fn main() -> std::io::Result<()> {
     let log_file = std::fs::OpenOptions::new().create(true).append(true).open("app.log").unwrap_or_else(|e| {
         eprintln!("[日志] 无法打开 app.log: {}，日志将输出到 stderr/nul", e);
         winapi::show_error_notification(&format!("日志文件创建失败\n\n无法创建或写入日志文件 app.log\n\n错误信息: {}\n\n程序将继续运行，但日志将不会保存到文件。", e));
-        #[cfg(windows)]
-        { std::fs::OpenOptions::new().write(true).open("nul").unwrap() }
-        #[cfg(not(windows))]
-        { std::fs::File::create("/dev/stderr").unwrap() }
+        winapi::get_windows_null_file()
     });
     let log_level = std::env::var("RUST_LOG").ok()
         .and_then(|s| s.parse().ok())
@@ -767,7 +646,7 @@ fn main() -> std::io::Result<()> {
     tray.add_menu_item("设置程序桌面穿透", move || {
         log::info!("[托盘] 点击了桌面穿透");
         let state = app_state_penetration.lock().unwrap();
-        setup_desktop_penetration(&state.window_name);
+        winapi::setup_desktop_penetration(&state.window_name);
         log::debug!("[托盘] 已请求设置桌面穿透");
     })
     .expect("无法添加穿透菜单项");
@@ -791,12 +670,12 @@ fn main() -> std::io::Result<()> {
         }
         state.settings_windows.clear(); // 清空设置窗口列表
         // 确保所有窗口都关闭后，再创建新窗口
-        match create_window(&url, &state.window_name, &browser_path) {
+        match create_window(&url, &state.window_name, &browser_path, true) { // 重启时保持kiosk模式
             Ok(new_ui) => {
                 let new_window = Arc::new(new_ui);
                 log::info!("[ClassPaper] 新主窗口已创建");
                 state.window = Some(new_window.clone());
-                setup_desktop_penetration(&state.window_name);
+                winapi::setup_desktop_penetration(&state.window_name);
                 log::debug!("[托盘] 已请求重启网页显示程序并设置桌面穿透，所有旧窗口已确保关闭");
             }
             Err(_) => {
@@ -805,6 +684,33 @@ fn main() -> std::io::Result<()> {
         }
     })
     .expect("无法添加重启菜单项");
+    let app_state_debug = Arc::clone(&app_state);
+    tray.add_menu_item("打开调试窗口", move || {
+        log::info!("[托盘] 点击了打开调试窗口");
+        let config = parse_config();
+        let url = normalize_url(&config.default.url);
+        let browser_path = config.default.browser_path.clone();
+        let debug_window_name = format!("classpaper_debug{}", generate_random_string(6));
+        
+        // 创建非kiosk模式的调试窗口
+        match create_window(&url, &debug_window_name, &browser_path, false) { // 调试窗口不使用kiosk模式
+            Ok(debug_ui) => {
+                let debug_window = Arc::new(debug_ui);
+                log::info!("[ClassPaper] 调试窗口已创建: {}", debug_window_name);
+                
+                // 将调试窗口添加到app_state中以便管理
+                let mut state = app_state_debug.lock().unwrap();
+                state.settings_windows.push(debug_window);
+                log::debug!("[托盘] 已请求打开调试窗口（非kiosk模式）");
+            }
+            Err(e) => {
+                log::error!("[ClassPaper] 创建调试窗口失败: {}", e);
+                winapi::show_error_notification(&format!("调试窗口创建失败\n\n无法创建调试窗口\n\n错误信息: {}\n\n请检查浏览器配置或系统资源。", e));
+            }
+        }
+    })
+    .expect("无法添加调试窗口菜单项");
+    
     let app_state_settings = Arc::clone(&app_state);
     tray.add_menu_item("设置", move || {
         log::info!("[托盘] 点击了设置");
@@ -847,6 +753,7 @@ fn main() -> std::io::Result<()> {
         &url,
         &window_name,
         &config.default.browser_path,
+        true, // 主窗口使用kiosk模式
     ) {
         Ok(ui) => Arc::new(ui),
         Err(_) => {
@@ -860,7 +767,7 @@ fn main() -> std::io::Result<()> {
     drop(state);
     thread::sleep(std::time::Duration::from_millis(300));
     let state = app_state.lock().unwrap();
-    setup_desktop_penetration(&state.window_name);
+    winapi::setup_desktop_penetration(&state.window_name);
     drop(state);
     log::info!("[ClassPaper] 桌面穿透已设置");
     std::thread::park();

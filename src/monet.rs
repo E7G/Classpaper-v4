@@ -508,14 +508,30 @@ impl MonetColorExtractor {
         )
     }
 
-    /// 获取对比度足够的文字颜色（符合WCAG标准）
-    fn get_contrasting_text_color(background: (u8, u8, u8)) -> String {
+    /// 获取智能调和的文字颜色 - 消除非黑即白的极端情况
+    fn get_smart_text_color(background: (u8, u8, u8)) -> String {
         let lightness = Self::calculate_relative_lightness(background);
-        if lightness > 0.5 {
-            "#000000".to_string() // 深色文字
+        
+        // 引入智能调和层：根据背景亮度选择最优文字色
+        // 不是简单的黑白，而是在保证可读性的前提下选择最和谐的颜色
+        if lightness > 0.7 {
+            // 很亮的背景：使用深灰色而非纯黑，更柔和
+            Self::rgb_to_hex(Self::adjust_lightness((30, 30, 30), -0.1))
+        } else if lightness > 0.5 {
+            // 中等亮度的背景：使用调和的深色调
+            Self::rgb_to_hex(Self::adjust_lightness(background, -0.5))
+        } else if lightness > 0.3 {
+            // 中等暗度的背景：使用调和的浅色调  
+            Self::rgb_to_hex(Self::adjust_lightness(background, 0.5))
         } else {
-            "#ffffff".to_string() // 浅色文字
+            // 很暗的背景：使用灰白色而非纯白，减少刺眼
+            Self::rgb_to_hex(Self::adjust_lightness((220, 220, 220), 0.1))
         }
+    }
+
+    /// 获取对比度足够的文字颜色（符合WCAG标准）- 保持向后兼容
+    fn get_contrasting_text_color(background: (u8, u8, u8)) -> String {
+        Self::get_smart_text_color(background)
     }
 
     /// 计算相对亮度（WCAG标准）
@@ -572,6 +588,9 @@ impl MonetColorExtractor {
         let secondary_rgb = Self::extract_rgb_from_hex(&scheme.secondary);
         let warning_rgb = Self::extract_rgb_from_hex(&scheme.warning); // 使用莫奈取色的警告色
         let success_rgb = Self::extract_rgb_from_hex(&scheme.primary); // 使用主色作为成功色
+        
+        // 生成文本增强层 - 确保文字在任何背景下都清晰可见
+        let text_enhancement = self.generate_text_enhancement_css();
         
         format!(
             r#"
@@ -708,7 +727,8 @@ body {{
 .course-time {{
   color: var(--text-secondary) !important;
 }}
-"#,
+
+{}"#,
             // 标准变量名
             scheme.primary, scheme.primary_variant, scheme.secondary, scheme.secondary_variant,
             scheme.background, scheme.surface, scheme.error, scheme.warning,
@@ -718,8 +738,90 @@ body {{
             scheme.background, scheme.surface, scheme.error, scheme.warning,
             scheme.on_primary, scheme.on_secondary, scheme.on_background, scheme.on_surface, scheme.on_error, scheme.on_warning,
             // RGB值
-            primary_rgb, secondary_rgb, background_rgb, warning_rgb, success_rgb
+            primary_rgb, secondary_rgb, background_rgb, warning_rgb, success_rgb,
+            // 文本增强CSS
+            text_enhancement
         )
+    }
+
+    /// 生成文本增强层CSS - 确保文字在任何背景下都清晰可见
+    fn generate_text_enhancement_css(&self) -> String {
+        let scheme = &self.color_scheme;
+        
+        // 根据背景亮度动态调整文本增强参数
+        let background_lightness = Self::calculate_relative_lightness(
+            Self::hex_to_rgb(&scheme.background).unwrap_or((255, 255, 255))
+        );
+        
+        // 动态计算增强参数
+        let text_shadow_opacity = if background_lightness > 0.6 || background_lightness < 0.4 {
+            "0.4"  // 高对比度背景需要更强的文字阴影
+        } else {
+            "0.2"  // 中等亮度背景使用柔和阴影
+        };
+        
+        let backdrop_blur = if background_lightness < 0.3 {
+            "2px"  // 暗色背景增加轻微模糊减少刺眼
+        } else {
+            "0px"  // 亮色背景不需要额外模糊
+        };
+        
+        format!(
+            r#"
+/* 文本增强层 - 智能适配任何背景 */
+.text-enhanced {{
+  text-shadow: 
+    0 1px 2px rgba(0, 0, 0, {text_shadow_opacity}),
+    0 2px 4px rgba(0, 0, 0, {text_shadow_opacity} * 0.5),
+    0 0 8px rgba(255, 255, 255, {text_shadow_opacity} * 0.3) !important;
+  backdrop-filter: blur({backdrop_blur}) !important;
+  transition: text-shadow 0.3s ease, backdrop-filter 0.3s ease !important;
+}}
+
+/* 高优先级文本增强 - 用于重要信息 */
+.text-enhanced-strong {{
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, {text_shadow_opacity} * 1.5),
+    0 4px 8px rgba(0, 0, 0, {text_shadow_opacity}),
+    0 0 12px rgba(255, 255, 255, {text_shadow_opacity} * 0.5) !important;
+  font-weight: 600 !important;
+}}
+
+/* 柔和文本增强 - 用于辅助信息 */
+.text-enhanced-soft {{
+  text-shadow: 
+    0 1px 1px rgba(0, 0, 0, {text_shadow_opacity} * 0.5),
+    0 0 4px rgba(255, 255, 255, {text_shadow_opacity} * 0.2) !important;
+}}
+
+/* 玻璃拟态文本增强 - 与玻璃卡片配合使用 */
+.glass-text {{
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, {text_shadow_opacity} * 0.1) 0%,
+    rgba(255, 255, 255, {text_shadow_opacity} * 0.05) 100%
+  ) !important;
+  backdrop-filter: blur(5px) !important;
+  border: 1px solid rgba(255, 255, 255, {text_shadow_opacity} * 0.2) !important;
+  border-radius: 8px !important;
+  padding: 0.25rem 0.5rem !important;
+}}
+"#,
+            text_shadow_opacity = text_shadow_opacity,
+            backdrop_blur = backdrop_blur
+        )
+    }
+
+    /// 十六进制转RGB
+    fn hex_to_rgb(hex: &str) -> Option<(u8, u8, u8)> {
+        if hex.starts_with('#') && hex.len() == 7 {
+            let r = u8::from_str_radix(&hex[1..3], 16).ok()?;
+            let g = u8::from_str_radix(&hex[3..5], 16).ok()?;
+            let b = u8::from_str_radix(&hex[5..7], 16).ok()?;
+            Some((r, g, b))
+        } else {
+            None
+        }
     }
 
     /// 从十六进制提取RGB值
