@@ -4,7 +4,7 @@
   --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  --warning-gradient: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
   
   /* 玻璃拟态效果 - 支持莫奈配色，消除硬编码透明度 */
   --glass-bg-rgb: 255, 255, 255;
@@ -16,6 +16,12 @@
   --glass-border-opacity: 0.2;
   --blur-strength: 20px;
   transition: background 0.3s ease, border-color 0.3s ease;
+  
+  /* 阴影系统 - 消除硬编码阴影值 */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.2);
   
   /* 文字色彩 */
   --text-primary: #1a1a1a;
@@ -49,7 +55,14 @@
   --primary-rgb: 102, 126, 234;
   --secondary-rgb: 240, 147, 251;
   --success-rgb: 79, 172, 254;
-  --warning-rgb: 245, 158, 11;
+  --warning-rgb: 255, 107, 107;
+  
+  /* 状态颜色 - 消除硬编码状态颜色 */
+  --primary-color: #667eea;
+  --secondary-color: #f093fb;
+  --success-color: #4facfe;
+  --warning-color: #ff6b6b;
+  --error-color: #f5576c;
 }
 
 /* 深色主题 - 消除硬编码颜色反转 */
@@ -60,6 +73,13 @@
   --text-primary: #ffffff;
   --text-secondary: #cccccc;
   --text-light: #888888;
+  
+  /* 深色主题状态颜色调整 - 增强对比度 */
+  --primary-color: #818cf8;
+  --secondary-color: #e879f9;
+  --success-color: #60a5fa;
+  --warning-color: #f87171;
+  --error-color: #f87171;
 }
 
 /* 基础重置 - 消除所有浏览器差异 */
@@ -446,6 +466,12 @@ body.monet-light-mode {
   --text-primary: #1a1a1a;
   --text-secondary: #666;
   --text-light: #999;
+  
+  /* 莫奈浅色模式状态颜色 */
+  --primary-color: var(--monet-primary);
+  --success-color: var(--monet-success);
+  --warning-color: var(--monet-warning);
+  --error-color: var(--monet-error);
 }
 
 body.monet-dark-mode {
@@ -453,6 +479,12 @@ body.monet-dark-mode {
   --text-primary: #ffffff;
   --text-secondary: #b0b0b0;
   --text-light: #888;
+  
+  /* 莫奈深色模式状态颜色 - 增强对比度 */
+  --primary-color: var(--monet-primary);
+  --success-color: var(--monet-success);
+  --warning-color: var(--monet-warning);
+  --error-color: var(--monet-error);
 }
 
 /* 莫奈配色动态变量 */
@@ -469,6 +501,10 @@ body.monet-dark-mode {
   --monet-on-background: #1a1a1a;
   --monet-on-surface: #1a1a1a;
   --monet-on-error: #ffffff;
+  
+  /* 莫奈状态颜色 - 确保主题一致性 */
+  --monet-success: #4facfe;
+  --monet-warning: #ff6b6b;
 }
 
 /* 壁纸背景系统 */
@@ -730,6 +766,17 @@ body.monet-dark-mode {
   gap: 0.2rem;
   font-size: 0.8rem;
   margin-top: 0.1rem;
+  color: var(--text-secondary);
+}
+
+.course-card.current .course-status {
+  color: var(--success-color);
+  font-weight: 500;
+}
+
+.course-card.next .course-status {
+  color: var(--warning-color);
+  font-weight: 500;
 }
 
 .status-indicator {
