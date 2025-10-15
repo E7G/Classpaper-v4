@@ -1,0 +1,70 @@
+name: Build and Release Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+# workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Create release directory
+        run: New-Item -ItemType Directory -Force -Path release
+
+      - name: Copy binary to release directory
+        run: |
+          Copy-Item "target/x86_64-pc-windows-msvc/release/classpaper.exe" -Destination "release/"
+          Copy-Item "res" -Destination "release/" -Recurse -Force
+          Copy-Item "config.toml" -Destination "release/"
+          Copy-Item "README.md" -Destination "release/"
+          Copy-Item "LICENSE" -Destination "release/"
+
+      - name: Create ZIP archive
+        run: |
+          Compress-Archive -Path "release/*" -DestinationPath "classpaper-windows-x64.zip"
+
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: classpaper-windows-x64
+#          path: classpaper-windows-x64.zip
+
+      - name: Create Release
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: false
+          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            classpaper-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
