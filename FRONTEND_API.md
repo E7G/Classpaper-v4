@@ -131,6 +131,82 @@ CONFIG.lessons.times.schedule = [
 ]
 ```
 
+### 🛠️ 调试 API (class.js)
+
+ClassPaper v4 提供了完整的调试工具集，帮助开发者测试和验证课程表显示功能。
+
+#### 时间相关调试
+```javascript
+// 测试当前时间显示
+window.testCurrentTime()
+
+// 模拟时间进度（自动进入调试模式）
+window.simulateTimeProgress()
+
+// 模拟下一步（需先调用simulateTimeProgress）
+window.simulateNextStep()
+
+// 退出调试模式，恢复自动刷新
+window.exitDebugMode()
+```
+
+#### 课程显示测试
+```javascript
+// 测试滚动模式（自动进入调试模式）
+window.testScrollMode()
+
+// 测试日间模式（自动进入调试模式）
+window.testDayMode()
+
+// 测试课程排列（自动进入调试模式）
+window.testArrangeClasses()
+```
+
+#### 模式切换
+```javascript
+// 切换显示模式（自动进入调试模式）
+window.toggleDisplayMode()
+```
+
+#### 调试模式控制
+```javascript
+// 进入调试模式（暂停自动刷新）
+window.enterDebugMode()
+
+// 检查是否处于调试模式
+window.isDebugMode()
+```
+
+#### 调试功能说明
+
+- **自动进入调试模式**：所有测试函数会自动调用 `enterDebugMode()` 暂停自动刷新
+- **恢复自动刷新**：使用 `exitDebugMode()` 恢复正常的自动刷新功能
+- **状态提示**：进入调试模式后，控制台会显示恢复提示信息
+- **时间模拟**：`simulateTimeProgress()` 会从早上7:00开始模拟一天的课程变化
+- **课程显示测试**：测试函数会显示不同模式下的课程排列效果
+
+#### 常见调试场景
+
+1. **验证课程显示**：使用 `testScrollMode()` 和 `testDayMode()` 测试不同显示模式
+2. **时间模拟**：使用 `simulateTimeProgress()` 模拟一天的课程变化
+3. **课程排列测试**：使用 `testArrangeClasses()` 验证课程排列逻辑
+4. **模式切换**：使用 `toggleDisplayMode()` 测试显示模式切换功能
+
+#### 调试示例
+
+```javascript
+// 示例1：测试滚动模式
+testScrollMode()  // 自动进入调试模式并显示滚动模式
+// ... 查看效果
+exitDebugMode()   // 恢复自动刷新
+
+// 示例2：模拟时间进度
+simulateTimeProgress()  // 开始时间模拟
+// ... 观察时间变化和课程切换
+simulateNextStep()      // 手动推进到下一步
+exitDebugMode()         // 结束模拟，恢复自动刷新
+```
+
 ### 📅 事件日历 API (event_cal.js)
 
 #### 事件数据格式
@@ -223,11 +299,30 @@ window.nowClass()
 console.log(CONFIG)
 ```
 
+#### 调试API使用
+ClassPaper v4 提供了专门的调试API，方便开发者测试和验证功能：
+
+```javascript
+// 测试课程显示模式
+testScrollMode()  // 测试滚动模式
+testDayMode()     // 测试日间模式
+
+// 模拟时间进度
+simulateTimeProgress()  // 从早上7:00开始模拟
+simulateNextStep()      // 推进到下一步
+
+// 测试完成后恢复自动刷新
+exitDebugMode()
+```
+
 #### 日志输出
 ```javascript
 // 所有模块都有日志输出
 console.log("屏幕大小：1920*1080")
 console.log("[课程定位] 高亮课程 语文")
+
+// 调试模式下的额外日志
+console.log("[调试模式] 已暂停自动刷新，使用 exitDebugMode() 恢复")
 ```
 
 ## 📊 数据流
@@ -284,3 +379,5 @@ window.switchTheme = function(theme) {
 ---
 
 💡 **提示**: 所有API都暴露在window对象下，可直接在浏览器控制台调用测试！
+
+🔧 **调试提示**: 使用调试API时，系统会自动进入调试模式暂停自动刷新。完成测试后，请使用 `exitDebugMode()` 恢复自动刷新功能。
