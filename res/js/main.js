@@ -1,6 +1,4 @@
-﻿const WIDTH = window.screen.width || 1920;
-const HEIGHT = window.screen.height || 1080;
-
+﻿
 // 获取body元素
 const body = document.body;
 
@@ -119,4 +117,3 @@ function setTime() {
 }
 
 setTime();
-console.log(`屏幕大小：${WIDTH}*${HEIGHT}`);

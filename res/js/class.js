@@ -14,6 +14,11 @@ let lastNotificationTime = 0;
 // 是否已经发出结束提示
 let endingNotified = false;
 
+// 存储定时器ID，用于暂停和恢复
+let refreshIntervalId = null;
+// 是否处于调试模式
+let isDebugMode = false;
+
 // 播放提示音
 function playNotification(type, className) {
     if (!CONFIG.notifications.enabled) return;
@@ -32,48 +37,23 @@ function getDayVectors() {
     // 如果是周日（0），则将其转换为7，方便后续计算（1=周一，7=周日）
     week = week === 0 ? 7 : week;
 
-    const dayCount = 7;           // 一周有7天
-    const lessonsPerDay = 12;     // 每天有12节课
-    const total = (dayCount+1) * lessonsPerDay; // 一周总共的课程数
-
-    // 计算今天在课程数组中的起始下标
-    // 例如：周一为12，周二为24，依此类推
-    let offset =  week  * lessonsPerDay;
-    // console.log(`[getDayVectors] week: ${week}, offset: ${offset}`);
-
-    // 取出今天的课程数组
-    // 这里slice的长度为13，是因为每天12节课+1个空元素（可能用于占位或防止越界）
-    let today_vec = source_vec.slice(offset, offset + lessonsPerDay).map(item => item.replace(/\n/g, ""));
-    today_vec.push("");
-    // console.log(`[getDayVectors] today_vec:`, today_vec);
-
-    // 计算前一天的起始下标
-    let prev_offset = offset - lessonsPerDay;
-    // 如果前一天小于0，说明已经到周一的前一天了，需要循环到周日
-    if (prev_offset < 1*lessonsPerDay) prev_offset = total-lessonsPerDay;
-    // console.log(`[getDayVectors] prev_offset: ${prev_offset}`);
-
-    // 计算后一天的起始下标
-    let next_offset = offset + lessonsPerDay;
-    // 如果后一天超出总课程数，说明已经到周日的后一天了，需要循环到周一
-    if (next_offset >= total) next_offset = 1*lessonsPerDay;
-    // console.log(`[getDayVectors] next_offset: ${next_offset}`);
-
-    // 取出前一天的课程数组，并在末尾加一个空元素
-    let prev_vec = source_vec.slice(prev_offset, prev_offset + lessonsPerDay).map(item => item.replace(/\n/g, ""));
-    prev_vec.push("");
-    // 取出后一天的课程数组，并在末尾加一个空元素
-    let next_vec = source_vec.slice(next_offset, next_offset + lessonsPerDay).map(item => item.replace(/\n/g, ""));
-    next_vec.push("");
-
-    // console.log(`[getDayVectors] prev_vec:`, prev_vec);
-    // console.log(`[getDayVectors] next_vec:`, next_vec);
-
+    // 直接从CONFIG中获取课程数据，而不是从source_vec解析
+    const dayIndex = week - 1; // 转换为0-6的索引，0=周一
+    const todayClasses = CONFIG.lessons.schedule[dayIndex]?.classes || [];
+    
+    // 获取前一天的课程
+    const prevDayIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+    const prevClasses = CONFIG.lessons.schedule[prevDayIndex]?.classes || [];
+    
+    // 获取后一天的课程
+    const nextDayIndex = dayIndex === 6 ? 0 : dayIndex + 1;
+    const nextClasses = CONFIG.lessons.schedule[nextDayIndex]?.classes || [];
+    
     // 返回今天、前一天、后一天的课程数组
     return {
-        today_vec, // 今天的课程
-        prev_vec,  // 前一天的课程
-        next_vec   // 后一天的课程
+        today_vec: [...todayClasses, ""], // 今天的课程，末尾加一个空元素
+        prev_vec: [...prevClasses, ""],   // 前一天的课程，末尾加一个空元素
+        next_vec: [...nextClasses, ""]    // 后一天的课程，末尾加一个空元素
     };
 }
 
@@ -340,15 +320,11 @@ function nowClass() {
         if (inClassTime && it !== -1) {
             // 如果当前在上课时间，直接使用当前课程索引
             currentIndex = it;
-            //schedule和todayClasses的差距修正
-            currentIndex++;
             // console.log(`[nowClass] 使用当前实际课程索引: ${currentIndex}`);
         } else {
             // 不在上课时间时，才使用最近的课程
             const { prevIdx, nextIdx } = findNearestClasses(now, schedule);
             currentIndex = nextIdx !== -1 ? nextIdx : prevIdx;
-            //schedule和todayClasses的差距修正
-            currentIndex++;
             // console.log(`[nowClass] 使用最近课程索引: ${currentIndex} (上一节: ${prevIdx}, 下一节: ${nextIdx})`);
         }
         
@@ -357,76 +333,80 @@ function nowClass() {
 
         // 修复：只有当确实不在上课时间时才显示休息
         if (!inClassTime) {
-            // console.log('[nowClass] 无当前课程，开始插入休息并重组课程');
+            // console.log('[nowclass] 无当前课程，开始插入休息并重组课程');
             let newArranged = [...arranged];
             
-            // 去掉第一个课程，在中间位置插入休息
-            newArranged.shift(); // 去掉第一个元素
-            newArranged.splice(6, 0, "休息"); // 在第6个位置插入休息
+            // 计算中间位置，根据实际课程长度自适应
+            const middleIndex = Math.floor(newArranged.length / 2);
             
-            // 确保数组长度保持12个
-            while (newArranged.length < 12) {
-                newArranged.push("...");
-            }
+            // 在中间位置插入休息，但确保不吞掉课程
+            newArranged.splice(middleIndex, 0, "休息");
             
-            // 如果需要填充前后课程，保持原有逻辑
-            for (let i = 0; i < 12; i++) {
-                if (!newArranged[i]) {
-                    if (i < 5 && prev_vec) {
-                        // 向前追溯
-                        const prevIndex = prev_vec.length - (5 - i);
-                        newArranged[i] = prevIndex >= 0 ? prev_vec[prevIndex] : "...";
-                    } else if (i > 6 && next_vec) {
-                        // 向后追溯
-                        const nextIndex = i - 7;
-                        newArranged[i] = nextIndex < next_vec.length ? next_vec[nextIndex] : "...";
-                    } else {
-                        newArranged[i] = "...";
-                    }
-                }
-            }
-            
-            arranged = newArranged.slice(0, 12); // 确保只保留12个
-            // console.log('[nowClass] 重组完成后的课程排列:', arranged); 
+            arranged = newArranged;
+            // console.log('[nowclass] 重组完成后的课程排列:', arranged); 
         } else {
-            // console.log('[nowClass] 当前在上课时间，不显示休息，直接使用实际课程');
+            // console.log('[nowclass] 当前在上课时间，不显示休息，直接使用实际课程');
         }
 
+        // 计算实际显示的课程数量
+        const displayCount = arranged.length;
+        const middleIndex = Math.floor(displayCount / 2);
+        
         // 渲染课程表
         // console.log('[nowClass] ===== 开始渲染课程表 =====');
-        for (let i = 0; i < arranged.length; i++) {
+        for (let i = 0; i < displayCount; i++) {
             let content = arranged[i] || "";
-            let opacity = (i === 6) ? "" : "opacity: 0.5;";
+            let opacity = (i === middleIndex) ? "" : "opacity: 0.5;";
             // console.log(`[nowClass] 渲染课程[${i}]: ${content}, 样式: ${opacity || '默认'}`);
-            document.getElementById('c' + i).innerHTML =
-                `<a href="#" role="button" class="contrast" id="c_b${i}" style="${opacity}">${content}</a>`;
+            const element = document.getElementById('c' + i);
+            if (element) {
+                element.innerHTML =
+                    `<a href="#" role="button" class="contrast" id="c_b${i}" style="${opacity}">${content}</a>`;
+            }
+        }
+
+        // 清除多余的显示位置
+        for (let i = displayCount; i < 12; i++) {
+            const element = document.getElementById('c' + i);
+            if (element) {
+                element.innerHTML = "";
+            }
         }
 
         // 设置样式
-        const c_b6 = document.getElementById('c_b6');
-        if (inClassTime) {
-            // 在上课时间时，中间位置高亮显示
-            c_b6.style.backgroundColor = '#93cee97f';
-            c_b6.style.fontWeight = '600';
-            c_b6.style.opacity = '1';
-            // console.log('[nowClass] 设置中间位置为上课状态样式');
-        } else {
-            // 不在上课时间时，中间位置显示休息样式
-            c_b6.style.backgroundColor = '#93cee97f';
-            c_b6.style.fontWeight = '600';
-            c_b6.style.opacity = '1';
-            // console.log('[nowClass] 设置中间位置为休息状态样式');
+        const middleElement = document.getElementById('c_b' + middleIndex);
+        if (middleElement) {
+            if (inClassTime) {
+                // 在上课时间时，中间位置高亮显示
+                middleElement.style.backgroundColor = '#93cee97f';
+                middleElement.style.fontWeight = '600';
+                middleElement.style.opacity = '1';
+                // console.log('[nowClass] 设置中间位置为上课状态样式');
+            } else {
+                // 不在上课时间时，中间位置显示休息样式
+                middleElement.style.backgroundColor = '#93cee97f';
+                middleElement.style.fontWeight = '600';
+                middleElement.style.opacity = '1';
+                // console.log('[nowClass] 设置中间位置为休息状态样式');
+            }
         }
         
-        for (let i = 0; i < 6; i++) {
+        // 设置中间位置之前的样式
+        for (let i = 0; i < middleIndex; i++) {
             const el = document.getElementById('c_b' + i);
-            el.style.backgroundColor = '#3daee940';
-            el.style.fontWeight = '400';
+            if (el) {
+                el.style.backgroundColor = '#3daee940';
+                el.style.fontWeight = '400';
+            }
         }
-        for (let i = 7; i < 12; i++) {
+        
+        // 设置中间位置之后的样式
+        for (let i = middleIndex + 1; i < displayCount; i++) {
             const el = document.getElementById('c_b' + i);
-            el.style.backgroundColor = '';
-            el.style.fontWeight = '400';
+            if (el) {
+                el.style.backgroundColor = '';
+                el.style.fontWeight = '400';
+            }
         }
         // console.log('[nowClass] ===== 滚动模式渲染完成 =====');
     } else if (displayMode === 'day') {
@@ -435,11 +415,13 @@ function nowClass() {
         const todayClasses = today_vec.slice(0, -1);
         // console.log('[nowClass] 今日课程列表:', todayClasses);
         
+        // 获取当前星期几
+        const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const currentDay = weekDays[new Date().getDay()];
+        
         let highlightIdx = -1;
         if (inClassTime) {
             highlightIdx = it;
-            //schedule和todayClasses的差距修正
-            highlightIdx++;
             // console.log(`[nowClass] 在上课时间，高亮课程索引: ${highlightIdx}`);
         } else {
             // 不在上课时间，定位最近上一节/下一节
@@ -449,35 +431,57 @@ function nowClass() {
         }
 
         // console.log('[nowClass] 开始渲染日间模式课程表');
+        
+        // 第一个位置显示星期几
+        const c0Element = document.getElementById('c0');
+        if (c0Element) {
+            c0Element.innerHTML =
+                `<a href="#" role="button" class="contrast" id="c_b0" style="background-color:#93cee97f; font-weight:600; opacity:1;">${currentDay}</a>`;
+        }
+        
+        // 计算实际需要的显示位置数量（星期几 + 课程数量）
+        const displayCount = todayClasses.length + 1;
+        
+        // 渲染课程，从第二个位置开始
         for (let i = 0; i < todayClasses.length; i++) {
             let content = todayClasses[i] || "";
             let elStyle = '';
+            const displayIndex = i + 1; // 实际显示位置，从1开始
             
             if (highlightIdx === -1) {
                 // 没有高亮，全部淡色
                 elStyle = 'background-color:; font-weight:400; opacity:0.5;';
-                // console.log(`[nowClass] 课程[${i}]: ${content} - 无高亮状态`);
+                // console.log(`[nowClass] 课程[${displayIndex}]: ${content} - 无高亮状态`);
             } else if (i < highlightIdx) {
                 // 已上过
                 elStyle = 'background-color:#3daee940; font-weight:400; opacity:0.8;';
-                // console.log(`[nowClass] 课程[${i}]: ${content} - 已上过`);
+                // console.log(`[nowClass] 课程[${displayIndex}]: ${content} - 已上过`);
             } else if (i == highlightIdx && !inClassTime) { // 新增无课条件
                 // 无课时
                 elStyle = 'background-color:#3daee940; font-weight:400; opacity:0.8;';
-                // console.log(`[nowClass] 课程[${i}]: ${content} - 无课时间`);
+                // console.log(`[nowClass] 课程[${displayIndex}]: ${content} - 无课时间`);
             } else if (i === highlightIdx) {
                 // 当前/即将上课
                 elStyle = 'background-color:#93cee97f; font-weight:600; opacity:1;';
-                // console.log(`[nowClass] 课程[${i}]: ${content} - 当前/即将上课`);
+                // console.log(`[nowClass] 课程[${displayIndex}]: ${content} - 当前/即将上课`);
             } else {
                 // 未上课
                 elStyle = 'background-color:; font-weight:400; opacity:0.5;';
-                // console.log(`[nowClass] 课程[${i}]: ${content} - 未上课`);
+                // console.log(`[nowClass] 课程[${displayIndex}]: ${content} - 未上课`);
             }
             
-            document.getElementById('c' + i).innerHTML =
-                `<a href="#" role="button" class="contrast" id="c_b${i}" style="${elStyle}">${content}</a>`;
+            const element = document.getElementById('c' + displayIndex);
+            if (element) {
+                element.innerHTML =
+                    `<a href="#" role="button" class="contrast" id="c_b${displayIndex}" style="${elStyle}">${content}</a>`;
+            }
         }
+        
+        // 清除多余的显示位置
+        for (let i = displayCount; i < 12; i++) {
+            document.getElementById('c' + i).innerHTML = "";
+        }
+        
         // console.log('[nowClass] ===== 日间模式渲染完成 =====');
     }
     // console.log('[nowClass] ===== 课程显示刷新完成 =====\n');
@@ -486,4 +490,287 @@ function nowClass() {
 // 首次加载
 nowClass();
 // 每秒刷新
-setInterval(nowClass, 1000);
+refreshIntervalId = setInterval(nowClass, 1000);
+
+// 调试函数：用于测试课程的显示
+function debugClassDisplay() {
+    console.log('===== 课程显示调试工具 =====');
+    console.log('可用命令：');
+    console.log('1. testScrollMode(hour, minute) - 测试滚动模式在指定时间的显示');
+    console.log('2. testDayMode(hour, minute) - 测试日间模式在指定时间的显示');
+    console.log('3. testCurrentTime() - 测试当前时间的课程显示');
+    console.log('4. toggleDisplayMode() - 切换显示模式（滚动/日间）');
+    console.log('5. showWeekSchedule(dayIndex) - 显示指定星期的课程表');
+    console.log('6. simulateTimeProgress() - 模拟一天的时间进度');
+    console.log('7. enterDebugMode() - 进入调试模式（暂停自动刷新）');
+    console.log('8. exitDebugMode() - 退出调试模式（恢复自动刷新）');
+    console.log('使用示例：testScrollMode(8, 30) 测试早上8:30的滚动模式显示');
+    console.log('============================');
+}
+
+// 进入调试模式（暂停自动刷新）
+function enterDebugMode() {
+    if (isDebugMode) {
+        console.log('已经在调试模式中');
+        return;
+    }
+    
+    // 清除定时器
+    if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+        refreshIntervalId = null;
+    }
+    
+    isDebugMode = true;
+    console.log('已进入调试模式，自动刷新已暂停');
+    console.log('使用 exitDebugMode() 退出调试模式');
+}
+
+// 退出调试模式（恢复自动刷新）
+function exitDebugMode() {
+    if (!isDebugMode) {
+        console.log('不在调试模式中');
+        return;
+    }
+    
+    // 恢复定时器
+    refreshIntervalId = setInterval(nowClass, 1000);
+    
+    isDebugMode = false;
+    console.log('已退出调试模式，自动刷新已恢复');
+    
+    // 刷新一次显示
+    nowClass();
+}
+
+// 测试滚动模式在指定时间的显示
+function testScrollMode(hour, minute) {
+    if (hour === undefined || minute === undefined) {
+        console.error('请提供小时和分钟参数，例如：testScrollMode(8, 30)');
+        return;
+    }
+    
+    // 自动进入调试模式
+    enterDebugMode();
+    
+    // 保存原始的Date对象
+    const originalDate = Date;
+    
+    // 创建模拟的Date对象
+    const MockDate = function() {
+        const date = new originalDate();
+        date.setHours(hour, minute, 0, 0);
+        return date;
+    };
+    
+    // 复制原始Date的所有静态方法
+    MockDate.prototype = originalDate.prototype;
+    for (const key in originalDate) {
+        MockDate[key] = originalDate[key];
+    }
+    
+    // 临时替换Date对象
+    Date = MockDate;
+    
+    // 临时设置为滚动模式
+    const originalMode = CONFIG.lessons.displayMode;
+    CONFIG.lessons.displayMode = 'scroll';
+    
+    // 刷新显示
+    nowClass();
+    
+    // 恢复原始设置
+    CONFIG.lessons.displayMode = originalMode;
+    Date = originalDate;
+    
+    console.log(`已测试滚动模式在 ${hour}:${minute.toString().padStart(2, '0')} 的显示效果`);
+    console.log('提示：使用 exitDebugMode() 恢复自动刷新');
+}
+
+// 测试日间模式在指定时间的显示
+function testDayMode(hour, minute) {
+    if (hour === undefined || minute === undefined) {
+        console.error('请提供小时和分钟参数，例如：testDayMode(14, 30)');
+        return;
+    }
+    
+    // 自动进入调试模式
+    enterDebugMode();
+    
+    // 保存原始的Date对象
+    const originalDate = Date;
+    
+    // 创建模拟的Date对象
+    const MockDate = function() {
+        const date = new originalDate();
+        date.setHours(hour, minute, 0, 0);
+        return date;
+    };
+    
+    // 复制原始Date的所有静态方法
+    MockDate.prototype = originalDate.prototype;
+    for (const key in originalDate) {
+        MockDate[key] = originalDate[key];
+    }
+    
+    // 临时替换Date对象
+    Date = MockDate;
+    
+    // 临时设置为日间模式
+    const originalMode = CONFIG.lessons.displayMode;
+    CONFIG.lessons.displayMode = 'day';
+    
+    // 刷新显示
+    nowClass();
+    
+    // 恢复原始设置
+    CONFIG.lessons.displayMode = originalMode;
+    Date = originalDate;
+    
+    console.log(`已测试日间模式在 ${hour}:${minute.toString().padStart(2, '0')} 的显示效果`);
+    console.log('提示：使用 exitDebugMode() 恢复自动刷新');
+}
+
+// 测试当前时间的课程显示
+function testCurrentTime() {
+    // 自动进入调试模式
+    enterDebugMode();
+    
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const mode = CONFIG.lessons.displayMode;
+    
+    console.log(`当前时间: ${hour}:${minute.toString().padStart(2, '0')}`);
+    console.log(`当前模式: ${mode}`);
+    
+    // 刷新显示
+    nowClass();
+    
+    console.log('已刷新当前时间的课程显示');
+    console.log('提示：使用 exitDebugMode() 恢复自动刷新');
+}
+
+// 切换显示模式
+function toggleDisplayMode() {
+    // 自动进入调试模式
+    enterDebugMode();
+    
+    const currentMode = CONFIG.lessons.displayMode;
+    const newMode = currentMode === 'scroll' ? 'day' : 'scroll';
+    
+    CONFIG.lessons.displayMode = newMode;
+    nowClass();
+    
+    console.log(`已切换显示模式: ${currentMode} -> ${newMode}`);
+    console.log('提示：使用 exitDebugMode() 恢复自动刷新');
+}
+
+// 显示指定星期的课程表
+function showWeekSchedule(dayIndex) {
+    if (dayIndex === undefined || dayIndex < 0 || dayIndex > 6) {
+        console.error('请提供有效的星期索引(0-6)，0表示周一，6表示周日');
+        return;
+    }
+    
+    const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    const schedule = CONFIG.lessons.schedule[dayIndex];
+    
+    console.log(`===== ${weekDays[dayIndex]}课程表 =====`);
+    schedule.classes.forEach((className, index) => {
+        const timeInfo = CONFIG.lessons.times.schedule[index];
+        console.log(`第${index + 1}节 (${timeInfo.begin}-${timeInfo.end}): ${className}`);
+    });
+    console.log('========================');
+}
+
+// 模拟一天的时间进度
+function simulateTimeProgress() {
+    // 自动进入调试模式
+    enterDebugMode();
+    
+    const schedule = CONFIG.lessons.times.schedule;
+    const mode = CONFIG.lessons.displayMode;
+    
+    console.log(`===== 开始模拟一天的时间进度 (当前模式: ${mode}) =====`);
+    console.log('提示：使用 exitDebugMode() 停止模拟并恢复自动刷新');
+    
+    // 获取第一节课的开始时间和最后一节课的结束时间
+    const firstClassBegin = schedule[0].begin.split(':');
+    const lastClassEnd = schedule[schedule.length - 1].end.split(':');
+    
+    let currentHour = parseInt(firstClassBegin[0]);
+    let currentMinute = parseInt(firstClassBegin[1]);
+    const endHour = parseInt(lastClassEnd[0]);
+    const endMinute = parseInt(lastClassEnd[1]);
+    
+    // 创建一个递归函数来模拟时间进度
+    function simulateNextStep() {
+        // 检查是否已经退出调试模式
+        if (!isDebugMode) {
+            console.log('===== 时间进度模拟已停止 =====');
+            return;
+        }
+        
+        if (currentHour > endHour || (currentHour === endHour && currentMinute >= endMinute)) {
+            console.log('===== 时间进度模拟完成 =====');
+            return;
+        }
+        
+        // 保存原始的Date对象
+        const originalDate = Date;
+        
+        // 创建模拟的Date对象
+        const MockDate = function() {
+            const date = new originalDate();
+            date.setHours(currentHour, currentMinute, 0, 0);
+            return date;
+        };
+        
+        // 复制原始Date的所有静态方法
+        MockDate.prototype = originalDate.prototype;
+        for (const key in originalDate) {
+            MockDate[key] = originalDate[key];
+        }
+        
+        // 临时替换Date对象
+        Date = MockDate;
+        
+        // 刷新显示
+        nowClass();
+        
+        // 恢复Date对象
+        Date = originalDate;
+        
+        console.log(`模拟时间: ${currentHour}:${currentMinute.toString().padStart(2, '0')}`);
+        
+        // 增加时间（每次增加30分钟）
+        currentMinute += 30;
+        if (currentMinute >= 60) {
+            currentMinute -= 60;
+            currentHour++;
+        }
+        
+        // 2秒后继续下一步
+        setTimeout(simulateNextStep, 2000);
+    }
+    
+    // 开始模拟
+    simulateNextStep();
+}
+
+// 将调试函数暴露到全局作用域，方便在控制台调用
+window.debugClassDisplay = debugClassDisplay;
+window.enterDebugMode = enterDebugMode;
+window.exitDebugMode = exitDebugMode;
+window.testScrollMode = testScrollMode;
+window.testDayMode = testDayMode;
+window.testCurrentTime = testCurrentTime;
+window.toggleDisplayMode = toggleDisplayMode;
+window.showWeekSchedule = showWeekSchedule;
+window.simulateTimeProgress = simulateTimeProgress;
+
+// 初始化时显示调试帮助
+console.log('%c课程显示调试工具已加载！', 'color: #4CAF50; font-weight: bold');
+console.log('%c在控制台输入 debugClassDisplay() 查看可用命令', 'color: #2196F3;');
+console.log('%c注意：使用测试函数会自动进入调试模式，使用 exitDebugMode() 恢复自动刷新', 'color: #FF9800;');
