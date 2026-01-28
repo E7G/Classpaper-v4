@@ -784,15 +784,7 @@ pub fn show_error_notification(message: &str) {
     }
 }
 
-// 显示托盘通知（使用Windows通知API）
-// 注：需要添加windows-notification特性到Cargo.toml才能启用
-// #[cfg(feature = "windows-notification")]
-pub fn show_toast_notification(message: &str) {
-    // 这里可以实现Windows 10+的Toast通知
-    // 需要额外的依赖如 windows-rs
-    // 暂时使用MessageBox作为fallback
-    show_error_notification(message);
-}
+
 
 // 通用的错误处理函数
 pub fn handle_window_creation_error(error: &str) {
@@ -803,4 +795,80 @@ pub fn handle_window_creation_error(error: &str) {
     
     log::error!("[ClassPaper] {}", error_message);
     show_error_notification(&error_message);
+}
+
+/// 检测Windows版本并选择合适的桌面穿透方案
+pub fn get_windows_version() -> (u32, u32, u32) {
+    // 由于GetVersionExW在新版本Windows中可能被弃用，我们使用更简单的方法
+    // 通过检查系统特性来判断Windows版本
+    use std::process::Command;
+    
+    // 尝试通过wmic命令获取版本信息
+    if let Ok(output) = Command::new("wmic")
+        .args(&["os", "get", "Version", "/value"])
+        .output()
+    {
+        if let Ok(version_str) = String::from_utf8(output.stdout) {
+            for line in version_str.lines() {
+                if line.starts_with("Version=") {
+                    let version = line.replace("Version=", "");
+                    let parts: Vec<&str> = version.split('.').collect();
+                    if parts.len() >= 3 {
+                        let major = parts[0].parse().unwrap_or(10);
+                        let minor = parts[1].parse().unwrap_or(0);
+                        let build = parts[2].parse().unwrap_or(19041);
+                        return (major, minor, build);
+                    }
+                }
+            }
+        }
+    }
+    
+    // 如果获取失败，默认返回Windows 10的版本号
+    log::warn!("[ClassPaper] 无法获取Windows版本，使用默认值");
+    (10, 0, 19041)
+}
+
+/// 判断是否应该使用新版本的桌面穿透方案
+pub fn should_use_new_wallpaper_method() -> bool {
+    let (major, minor, build) = get_windows_version();
+    log::info!("[ClassPaper] 检测到Windows版本: {}.{}.{}", major, minor, build);
+    
+    // Windows 10 (major = 10) 且 build >= 19041 (20H1) 或 Windows 11 (major >= 10)
+    // 使用新方案适配Win10 20H1+和Win11的桌面穿透
+    if major >= 10 && build >= 19041 {
+        log::info!("[ClassPaper] 使用新版本桌面穿透方案 (Win10 20H1+/Win11)");
+        true
+    } else {
+        log::info!("[ClassPaper] 使用旧版本桌面穿透方案 (Win10早期版本/Win7)");
+        false
+    }
+}
+
+/// 统一的桌面穿透设置函数，根据Windows版本自动选择方案
+pub fn setup_desktop_penetration(window_name: &str) {
+    log::info!("[ClassPaper] 开始设置桌面穿透: {}", window_name);
+    
+    let success = if should_use_new_wallpaper_method() {
+        // 尝试新版本方案
+        log::debug!("[ClassPaper] 尝试新版本桌面穿透方案");
+        let result = setup_wallpaper_new(window_name);
+        if !result {
+            log::warn!("[ClassPaper] 新版本方案失败，回退到旧版本方案");
+            setup_wallpaper(window_name)
+        } else {
+            result
+        }
+    } else {
+        // 使用旧版本方案
+        log::debug!("[ClassPaper] 使用旧版本桌面穿透方案");
+        setup_wallpaper(window_name)
+    };
+    
+    if success {
+        log::info!("[ClassPaper] 桌面穿透设置成功");
+    } else {
+        log::error!("[ClassPaper] 桌面穿透设置失败");
+        show_error_notification("桌面穿透设置失败\n\n可能原因：\n• 系统权限不足\n• 桌面窗口被其他程序占用\n• Windows版本兼容性问题\n\n请尝试以管理员身份运行程序，或查看app.log获取详细信息。");
+    }
 }

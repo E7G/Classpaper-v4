@@ -1532,6 +1532,7 @@
                 <button class="tab-button" onclick="switchTab('events')">事件</button>
                 <button class="tab-button" onclick="switchTab('wallpapers')">壁纸</button>
                 <button class="tab-button" onclick="switchTab('notice')">告示牌</button>
+                <button class="tab-button" onclick="switchTab('log')">关于</button>
             </div>
         </div>
 
@@ -1800,6 +1801,151 @@
                         <h3>预览</h3>
                         <div id="notice-preview"></div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="log" class="tab-content">
+            <div class="settings-grid">
+                <!-- 项目介绍和字符画 -->
+                <div class="form-section settings-grid-full">
+                    <div class="form-section-title">
+                        <h2>关于 ClassPaper</h2>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;">
+                        <img src="favicon.ico" alt="ClassPaper Logo" style="width: 64px; height: 64px; margin-bottom: 16px;">
+                        <p style="text-align: center; margin-top: 16px; color: var(--text-color);">
+                            ClassPaper 是一款功能强大的课程表和壁纸管理工具，
+                            帮助你轻松管理日常课程安排和美化桌面环境。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 特别感谢 -->
+                <div class="form-section settings-grid-full">
+                    <div class="form-section-title">
+                        <h2>特别感谢</h2>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                            <thead>
+                                <tr style="background-color: var(--hover-color);">
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color);">👤 贡献者</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color);">🎯 贡献内容</th>
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid var(--border-color);">🔗 链接</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">Candlest</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">前端文件基础</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">
+                                        <button class="secondary" onclick="openURLInBrowser('https://github.com/Candlest')" style="padding: 4px 8px; font-size: 12px;">ClassBoard-F8</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">mike-unk</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">程序整体修改建议</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">
+                                        <button class="secondary" onclick="openURLInBrowser('https://github.com/mike-unk')" style="padding: 4px 8px; font-size: 12px;">GitHub Profile</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">E7G</td>
+                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">项目作者</td>
+                    <td style="padding: 12px; border-bottom: 1px solid var(--border-color);">
+                        <button class="secondary" onclick="openURLInBrowser('https://github.com/E7G')" style="padding: 4px 8px; font-size: 12px;">GitHub Profile</button>
+                    </td>
+                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 版本更新检测 -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <h2>版本更新</h2>
+                    </div>
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <label>当前版本</label>
+                            <span id="current-version" style="font-weight: 600;">检测中...</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <label>编译日期</label>
+                            <span id="build-date" style="font-weight: 600;">2026-01-29</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <label>最新版本</label>
+                            <span id="latest-version" style="font-weight: 600; color: var(--primary-color);">检查中...</span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                            <label>更新状态</label>
+                            <span id="update-status" style="font-weight: 600;">未检查</span>
+                        </div>
+                        <button class="primary" onclick="checkForUpdates()" style="width: 100%;">检查更新</button>
+                        <div class="help-text" style="margin-top: 8px;">点击按钮检查是否有新版本可用</div>
+                    </div>
+                </div>
+
+                <!-- 项目链接与反馈 -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <h2>项目链接与反馈</h2>
+                    </div>
+                    <div class="form-group">
+                        <button class="primary" onclick="openURLInBrowser('https://github.com/E7G/Classpaper-v4')" style="width: 100%; margin-bottom: 12px;">
+                            GitHub 仓库
+                        </button>
+                        <div class="help-text" style="margin-top: 8px; margin-bottom: 16px;">访问项目 GitHub 页面获取更多信息</div>
+                        <button class="primary" onclick="openURLInBrowser('https://github.com/E7G/Classpaper-v4/discussions')" style="width: 100%; margin-bottom: 12px;">
+                            GitHub 讨论
+                        </button>
+                        <div class="help-text" style="margin-top: 8px; margin-bottom: 16px;">在 GitHub 上参与项目讨论和交流</div>
+                        <button class="primary" onclick="openURLInBrowser('https://github.com/E7G/Classpaper-v4/issues')" style="width: 100%;">
+                            提交 Issue
+                        </button>
+                        <div class="help-text" style="margin-top: 8px;">在 GitHub 上提交问题或建议</div>
+                    </div>
+                </div>
+
+                <!-- 弹幕留言 -->
+                <div class="form-section settings-grid-full">
+                    <div class="form-section-title">
+                        <h2>弹幕留言</h2>
+                    </div>
+                    <div class="form-group">
+                        <label for="danmaku-content">弹幕内容</label>
+                        <input type="text" id="danmaku-content" placeholder="在这里输入你的弹幕..." style="max-width: 400px;">
+                        <div class="help-text">弹幕会以滚动形式显示在页面上，并存储在本地文件中</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="danmaku-toggle" checked onclick="toggleDanmaku()">
+                            开启弹幕
+                        </label>
+                        <div class="help-text">开启或关闭弹幕显示</div>
+                    </div>
+                    <div class="button-group" style="justify-content: flex-start; gap: 8px;">
+                        <button class="primary" onclick="addDanmaku()">发送弹幕</button>
+                        <button class="secondary" onclick="clearDanmakus()">清空弹幕</button>
+                    </div>
+                </div>
+
+                <!-- 弹幕留言列表 -->
+                <div class="form-section settings-grid-full">
+                    <div class="form-section-title">
+                        <h2>弹幕留言列表</h2>
+                    </div>
+                    <div id="danmaku-list" style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; background-color: var(--hover-color);">
+                        <!-- 弹幕留言将在这里以列表形式显示 -->
+                    </div>
+                </div>
+
+                <!-- 全屏弹幕容器 -->
+                <div id="fullscreen-danmaku-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; overflow: hidden;">
+                    <!-- 全屏弹幕将在这里显示 -->
                 </div>
             </div>
         </div>
@@ -2855,6 +3001,511 @@ const sth = CONFIG.sth;`;
                 };
                 document.addEventListener('keydown', escHandler);
             });
+        }
+
+        // 版本更新检测
+        async function checkForUpdates() {
+            try {
+                // 获取所有releases
+                const response = await fetch('https://api.github.com/repos/E7G/Classpaper-v4/releases');
+                if (response.ok) {
+                    const releases = await response.json();
+                    
+                    // 获取编译日期
+                    const buildDateElement = document.getElementById('build-date');
+                    const buildDateStr = buildDateElement.textContent;
+                    const buildDate = new Date(buildDateStr);
+                    
+                    // 找到当前版本：通过比较编译日期与release发布时间
+                    // 找到最接近但不超过编译日期的release
+                    let currentVersion = 'unknown';
+                    let latestVersion = releases[0]?.tag_name || 'unknown';
+                    let isUpdateAvailable = false;
+                    
+                    // 按发布时间排序（从新到旧）
+                    const sortedReleases = [...releases].sort((a, b) => 
+                        new Date(b.published_at) - new Date(a.published_at)
+                    );
+                    
+                    // 查找当前版本
+                    for (const release of sortedReleases) {
+                        const releaseDate = new Date(release.published_at);
+                        if (releaseDate <= buildDate) {
+                            currentVersion = release.tag_name;
+                            break;
+                        }
+                    }
+                    
+                    // 如果没有找到匹配的release，使用最新的作为当前版本
+                    if (currentVersion === 'unknown' && sortedReleases.length > 0) {
+                        currentVersion = sortedReleases[0].tag_name;
+                    }
+                    
+                    // 检查是否有更新：最新版本是否大于当前版本
+                    if (currentVersion !== latestVersion) {
+                        isUpdateAvailable = true;
+                    }
+                    
+                    // 更新显示
+                    document.getElementById('current-version').textContent = currentVersion;
+                    document.getElementById('latest-version').textContent = latestVersion;
+                    
+                    const updateStatusElement = document.getElementById('update-status');
+                    if (isUpdateAvailable) {
+                        updateStatusElement.textContent = '有新版本可用';
+                        updateStatusElement.style.color = 'var(--success-color)';
+                        showStatus(`检查更新完成，发现新版本：${latestVersion}`, 'success');
+                    } else {
+                        updateStatusElement.textContent = '当前已是最新版本';
+                        updateStatusElement.style.color = 'var(--text-color)';
+                        showStatus(`检查更新完成，当前已是最新版本`, 'success');
+                    }
+                    
+                    // 在控制台显示详细信息
+                    console.log('=== 更新检查结果 ===');
+                    console.log('当前版本:', currentVersion);
+                    console.log('编译日期:', buildDateStr);
+                    console.log('最新版本:', latestVersion);
+                    console.log('所有releases:', sortedReleases.map(r => `${r.tag_name} (${new Date(r.published_at).toLocaleString()})`));
+                    console.log('是否需要更新:', isUpdateAvailable ? '是' : '否');
+                    
+                } else {
+                    document.getElementById('latest-version').textContent = '检查失败';
+                    document.getElementById('update-status').textContent = '检查失败';
+                    showStatus('检查更新失败，请检查网络连接', 'error');
+                }
+            } catch (error) {
+                document.getElementById('latest-version').textContent = '检查失败';
+                document.getElementById('update-status').textContent = '检查失败';
+                showStatus('检查更新失败：' + error.message, 'error');
+            }
+        }
+
+
+
+        // 初始化关于页面
+        function initAboutPage() {
+            // 获取并更新编译日期
+            updateBuildDate();
+            // 检查更新（会自动更新当前版本）
+            checkForUpdates();
+            // 初始化弹幕和留言板
+            initDanmakuAndMessages();
+        }
+
+        // 弹幕和留言板功能
+        let danmakuData = [];
+        let messageData = [];
+        let isDanmakuEnabled = true;
+        let danmakuInterval = null;
+
+        function initDanmakuAndMessages() {
+            loadData();
+            updateDanmakuList();
+            updateMessageList();
+            initDanmakuToggle();
+            startDanmaku();
+        }
+
+        function loadData() {
+            try {
+                if (typeof MESSAGES !== 'undefined' && Array.isArray(MESSAGES)) {
+                    danmakuData = MESSAGES.map(msg => ({
+                        content: String(msg.content || ''),
+                        date: msg.date || ''
+                    }));
+                    messageData = MESSAGES.map(msg => ({
+                        content: String(msg.content || ''),
+                        date: msg.date || ''
+                    }));
+                }
+            } catch (e) {
+                danmakuData = [];
+                messageData = [];
+            }
+        }
+
+        function updateDanmakuList() {
+            const container = document.getElementById('danmaku-list');
+            if (!container) return;
+
+            if (danmakuData.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-color); opacity: 0.6;">暂无留言弹幕</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            danmakuData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'event-item';
+                div.style.animation = 'fadeIn 0.3s ease-out';
+                div.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">${item.date}</div>
+                        <div style="white-space: pre-wrap; line-height: 1.4;">${item.content}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateMessageList() {
+            const container = document.getElementById('messages-container');
+            if (!container) return;
+
+            if (messageData.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-color); opacity: 0.6;">暂无留言</p>';
+                return;
+            }
+
+            container.innerHTML = '';
+            messageData.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'event-item';
+                div.style.animation = 'fadeIn 0.3s ease-out';
+                div.innerHTML = `
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">${item.date}</div>
+                        <div style="white-space: pre-wrap; line-height: 1.4;">${item.content}</div>
+                    </div>
+                    <button class="delete" onclick="deleteMessage(${index})">删除</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function initDanmakuToggle() {
+            const toggle = document.getElementById('danmaku-toggle');
+            if (toggle) {
+                isDanmakuEnabled = toggle.checked;
+                toggle.onclick = toggleDanmaku;
+            }
+        }
+
+        function toggleDanmaku() {
+            const toggle = document.getElementById('danmaku-toggle');
+            isDanmakuEnabled = toggle.checked;
+            
+            if (isDanmakuEnabled) {
+                startDanmaku();
+            } else {
+                stopDanmaku();
+            }
+        }
+
+        function startDanmaku() {
+            if (!isDanmakuEnabled || danmakuData.length === 0) return;
+            
+            stopDanmaku();
+            
+            let index = 0;
+            danmakuInterval = setInterval(() => {
+                if (!isDanmakuEnabled) {
+                    stopDanmaku();
+                    return;
+                }
+                
+                if (index >= danmakuData.length) {
+                    index = 0;
+                }
+                
+                createDanmakuElement(danmakuData[index].content);
+                index++;
+            }, 2000);
+        }
+
+        function stopDanmaku() {
+            if (danmakuInterval) {
+                clearInterval(danmakuInterval);
+                danmakuInterval = null;
+            }
+            
+            const container = document.getElementById('fullscreen-danmaku-container');
+            if (container) {
+                container.innerHTML = '';
+            }
+        }
+
+        function createDanmakuElement(content) {
+            const container = document.getElementById('fullscreen-danmaku-container');
+            if (!container) return;
+
+            const danmaku = document.createElement('div');
+            danmaku.style.position = 'absolute';
+            danmaku.style.whiteSpace = 'nowrap';
+            danmaku.style.color = getRandomDanmakuColor();
+            danmaku.style.fontSize = '16px';
+            danmaku.style.fontWeight = '600';
+            danmaku.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.8)';
+            danmaku.style.pointerEvents = 'none';
+            danmaku.textContent = content;
+
+            const top = Math.floor(Math.random() * (window.innerHeight - 30));
+            danmaku.style.top = `${top}px`;
+            danmaku.style.right = '-400px';
+
+            container.appendChild(danmaku);
+
+            const duration = 10000 + Math.random() * 5000;
+            danmaku.style.transition = `right ${duration}ms linear`;
+            
+            setTimeout(() => {
+                danmaku.style.right = `${window.innerWidth + 400}px`;
+            }, 100);
+
+            setTimeout(() => {
+                if (container.contains(danmaku)) {
+                    container.removeChild(danmaku);
+                }
+            }, duration + 100);
+        }
+
+        function getRandomDanmakuColor() {
+            const colors = ['#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        async function addDanmaku() {
+            try {
+                const content = document.getElementById('danmaku-content').value.trim();
+                if (!content) {
+                    showStatus('请输入弹幕内容', 'error');
+                    return;
+                }
+
+                await waitForBinding('writeFile');
+
+                const newItem = {
+                    date: new Date().toLocaleString(),
+                    content: content
+                };
+
+                let messages = [];
+                if (typeof MESSAGES !== 'undefined' && Array.isArray(MESSAGES)) {
+                    messages = JSON.parse(JSON.stringify(MESSAGES));
+                }
+
+                messages.push(newItem);
+
+                const data = JSON.stringify(messages, null, 2);
+                const messagesContent = 'const MESSAGES = ' + data + ';';
+                await window.writeFile('res/config/messages.js', messagesContent);
+
+                window.MESSAGES = messages;
+
+                danmakuData.unshift({
+                    content: content,
+                    date: newItem.date
+                });
+                messageData.unshift({
+                    content: content,
+                    date: newItem.date
+                });
+
+                updateDanmakuList();
+                updateMessageList();
+                createDanmakuElement(content);
+
+                document.getElementById('danmaku-content').value = '';
+                showStatus('弹幕发送成功', 'success');
+            } catch (e) {
+                showStatus('发送弹幕失败：' + e.message, 'error');
+            }
+        }
+
+        async function clearDanmakus() {
+            const confirmed = await showFluentDialog({
+                title: '确认清空',
+                message: '确定要清空所有留言弹幕吗？此操作不可恢复。',
+                confirmText: '清空',
+                cancelText: '取消',
+                type: 'danger'
+            });
+
+            if (confirmed) {
+                try {
+                    await waitForBinding('writeFile');
+
+                    const messagesContent = 'const MESSAGES = [];';
+                    await window.writeFile('res/config/messages.js', messagesContent);
+
+                    window.MESSAGES = [];
+                    danmakuData = [];
+                    messageData = [];
+
+                    updateDanmakuList();
+                    updateMessageList();
+                    stopDanmaku();
+
+                    showStatus('留言弹幕已清空', 'success');
+                } catch (e) {
+                    showStatus('清空留言弹幕失败：' + e.message, 'error');
+                }
+            }
+        }
+
+        async function addMessage() {
+            try {
+                const content = document.getElementById('message-content').value.trim();
+                if (!content) {
+                    showStatus('请输入留言内容', 'error');
+                    return;
+                }
+
+                await waitForBinding('writeFile');
+
+                const newItem = {
+                    date: new Date().toLocaleString(),
+                    content: content
+                };
+
+                let messages = [];
+                if (typeof MESSAGES !== 'undefined' && Array.isArray(MESSAGES)) {
+                    messages = JSON.parse(JSON.stringify(MESSAGES));
+                }
+
+                messages.push(newItem);
+
+                const data = JSON.stringify(messages, null, 2);
+                const messagesContent = 'const MESSAGES = ' + data + ';';
+                await window.writeFile('res/config/messages.js', messagesContent);
+
+                window.MESSAGES = messages;
+
+                danmakuData.unshift({
+                    content: content,
+                    date: newItem.date
+                });
+                messageData.unshift({
+                    content: content,
+                    date: newItem.date
+                });
+
+                updateDanmakuList();
+                updateMessageList();
+
+                document.getElementById('message-content').value = '';
+                showStatus('留言添加成功', 'success');
+            } catch (e) {
+                showStatus('添加留言失败：' + e.message, 'error');
+            }
+        }
+
+        async function deleteMessage(index) {
+            try {
+                await waitForBinding('writeFile');
+
+                let messages = [];
+                if (typeof MESSAGES !== 'undefined' && Array.isArray(MESSAGES)) {
+                    messages = JSON.parse(JSON.stringify(MESSAGES));
+                }
+
+                messages.splice(index, 1);
+
+                const data = JSON.stringify(messages, null, 2);
+                const messagesContent = 'const MESSAGES = ' + data + ';';
+                await window.writeFile('res/config/messages.js', messagesContent);
+
+                window.MESSAGES = messages;
+
+                danmakuData = messages.map(msg => ({
+                    content: String(msg.content || ''),
+                    date: msg.date || ''
+                }));
+                messageData = messages.map(msg => ({
+                    content: String(msg.content || ''),
+                    date: msg.date || ''
+                }));
+
+                updateDanmakuList();
+                updateMessageList();
+
+                showStatus('留言删除成功', 'success');
+            } catch (e) {
+                showStatus('删除留言失败：' + e.message, 'error');
+            }
+        }
+
+        async function clearMessages() {
+            const confirmed = await showFluentDialog({
+                title: '确认清空',
+                message: '确定要清空所有留言吗？此操作不可恢复。',
+                confirmText: '清空',
+                cancelText: '取消',
+                type: 'danger'
+            });
+
+            if (confirmed) {
+                try {
+                    await waitForBinding('writeFile');
+
+                    const messagesContent = 'const MESSAGES = [];';
+                    await window.writeFile('res/config/messages.js', messagesContent);
+
+                    window.MESSAGES = [];
+                    danmakuData = [];
+                    messageData = [];
+
+                    updateDanmakuList();
+                    updateMessageList();
+                    stopDanmaku();
+
+                    showStatus('留言已清空', 'success');
+                } catch (e) {
+                    showStatus('清空留言失败：' + e.message, 'error');
+                }
+            }
+        }
+
+        // 更新编译日期
+        async function updateBuildDate() {
+            try {
+                // 等待 getBuildDate 函数绑定
+                await waitForBinding('getBuildDate');
+                
+                // 调用 Rust 绑定的函数获取编译日期
+                const buildDate = await window.getBuildDate();
+                
+                // 更新显示
+                const buildDateElement = document.getElementById('build-date');
+                if (buildDateElement) {
+                    buildDateElement.textContent = buildDate;
+                }
+                
+                console.log('编译日期更新为:', buildDate);
+            } catch (e) {
+                console.error('获取编译日期失败:', e);
+                // 如果失败，使用当前日期作为 fallback
+                const currentDate = new Date().toISOString().split('T')[0];
+                const buildDateElement = document.getElementById('build-date');
+                if (buildDateElement) {
+                    buildDateElement.textContent = currentDate;
+                }
+            }
+        }
+
+
+
+        // 监听 tab 切换，当切换到 log tab 时初始化
+        function switchTab(tabId) {
+            // 隐藏所有标签页内容
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // 取消所有标签按钮的激活状态
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // 显示选中的标签页内容
+            document.getElementById(tabId).classList.add('active');
+            // 激活对应的标签按钮
+            document.querySelector(`.tab-button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+
+            // 当切换到 log tab 时初始化
+            if (tabId === 'log') {
+                initAboutPage();
+            }
         }
 
         function smartGuessTimeTable() {
@@ -5262,8 +5913,8 @@ const sth = CONFIG.sth;`;
                     if (searchInput) searchInput.focus();
                 } else {
                     searchBar.style.display = 'none';
-                    if (tableEditor) {
-                        tableEditor.clearSearchHighlights();
+                    if (window.tableEditor) {
+                        window.tableEditor.clearSearchHighlights();
                     }
                 }
             }
@@ -5327,19 +5978,19 @@ const sth = CONFIG.sth;`;
 
             // 执行查找
             function performSearch(direction = 'down') {
-                if (!tableEditor) return;
+                if (!window.tableEditor) return;
                 
                 const searchInput = document.getElementById('searchInput');
                 const searchTerm = searchInput.value.trim();
                 
                 if (!searchTerm) {
-                    tableEditor.clearSearchHighlights();
+                    window.tableEditor.clearSearchHighlights();
                     return;
                 }
 
                 const result = direction === 'down' ? 
-                    tableEditor.searchNext(searchTerm) : 
-                    tableEditor.searchPrevious(searchTerm);
+                    window.tableEditor.searchNext(searchTerm) : 
+                    window.tableEditor.searchPrevious(searchTerm);
                 
                 if (result) {
                     if (result.total === 0) {
@@ -5353,7 +6004,7 @@ const sth = CONFIG.sth;`;
 
             // 执行替换
             function performReplace() {
-                if (!tableEditor) return;
+                if (!window.tableEditor) return;
                 
                 const searchInput = document.getElementById('searchInput');
                 const replaceInput = document.getElementById('replaceInput');
@@ -5365,7 +6016,7 @@ const sth = CONFIG.sth;`;
                     return;
                 }
                 
-                const result = tableEditor.replaceText(searchTerm, replaceTerm, false);
+                const result = window.tableEditor.replaceText(searchTerm, replaceTerm, false);
                 if (result) {
                     if (result > 0) {
                         showStatus('已替换', 'success', 1500);
@@ -5377,7 +6028,7 @@ const sth = CONFIG.sth;`;
 
             // 执行全部替换
             function performReplaceAll() {
-                if (!tableEditor) return;
+                if (!window.tableEditor) return;
                 
                 const searchInput = document.getElementById('searchInput');
                 const replaceInput = document.getElementById('replaceInput');
@@ -5389,7 +6040,7 @@ const sth = CONFIG.sth;`;
                     return;
                 }
                 
-                const result = tableEditor.replaceText(searchTerm, replaceTerm, true);
+                const result = window.tableEditor.replaceText(searchTerm, replaceTerm, true);
                 if (result) {
                     if (result > 0) {
                         showStatus(`已替换 ${result} 处`, 'success', 2000);
@@ -5405,15 +6056,14 @@ const sth = CONFIG.sth;`;
                 if (searchBar) {
                     searchBar.style.display = 'none';
                 }
-                if (tableEditor) {
-                    tableEditor.clearSearchHighlights();
+                if (window.tableEditor) {
+                    window.tableEditor.clearSearchHighlights();
                 }
             }
 
             // 初始化表格编辑器
-            let tableEditor;
             document.addEventListener('DOMContentLoaded', () => {
-                tableEditor = new OfficeTableEditor('scheduleTable');
+                window.tableEditor = new OfficeTableEditor('scheduleTable');
                 
                 // 设置菜单事件
                 setupMenuEvents();
@@ -5432,16 +6082,16 @@ const sth = CONFIG.sth;`;
                     // Ctrl+Z 撤销
                     if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
                         e.preventDefault();
-                        if (tableEditor) {
-                            tableEditor.undoAction();
+                        if (window.tableEditor) {
+                            window.tableEditor.undoAction();
                         }
                     }
                     
                     // Ctrl+Shift+Z 或 Ctrl+Y 重做
                     if ((e.ctrlKey && e.shiftKey && e.key === 'Z') || (e.ctrlKey && e.key === 'y')) {
                         e.preventDefault();
-                        if (tableEditor) {
-                            tableEditor.redoAction();
+                        if (window.tableEditor) {
+                            window.tableEditor.redoAction();
                         }
                     }
 
@@ -5476,8 +6126,8 @@ const sth = CONFIG.sth;`;
                 const undoBtn = document.querySelector('button[onclick="undoAction()"]');
                 const redoBtn = document.querySelector('button[onclick="redoAction()"]');
                 
-                if (undoBtn && redoBtn && tableEditor) {
-                    const status = tableEditor.getUndoRedoStatus();
+                if (undoBtn && redoBtn && window.tableEditor) {
+                    const status = window.tableEditor.getUndoRedoStatus();
                     
                     // 更新撤销按钮
                     undoBtn.disabled = !status.canUndo;
